@@ -349,7 +349,7 @@ public class ChannelManager {
         channels.remove(channelId);
 
         // Remove from config asynchronously
-        config.set("channels." + channelId, null);
+        asyncConfigSaver.saveAsync("channels." + channelId, null);
         asyncConfigSaver.saveNow();
 
         // Switch any players using this channel to the default
@@ -375,7 +375,7 @@ public class ChannelManager {
         }
         
         this.defaultChannelId = channelId;
-        config.set("default-channel", channelId);
+        asyncConfigSaver.saveAsync("default-channel", channelId);
         asyncConfigSaver.saveNow();
         
         return true;
@@ -388,23 +388,23 @@ public class ChannelManager {
      */
     private void saveChannelToConfig(String channelId, Channel channel) {
         String basePath = "channels." + channelId + ".";
-        config.set(basePath + "enabled", channel.isEnabled());
-        config.set(basePath + "display-name", channel.getDisplayName());
-        config.set(basePath + "format", channel.getFormat());
-        config.set(basePath + "character", channel.hasPrefix() ? channel.getPrefix() : "");
-        config.set(basePath + "send-permission", channel.getSendPermission());
-        config.set(basePath + "receive-permission", channel.getReceivePermission());
-        
+        asyncConfigSaver.saveAsync(basePath + "enabled", channel.isEnabled());
+        asyncConfigSaver.saveAsync(basePath + "display-name", channel.getDisplayName());
+        asyncConfigSaver.saveAsync(basePath + "format", channel.getFormat());
+        asyncConfigSaver.saveAsync(basePath + "character", channel.hasPrefix() ? channel.getPrefix() : "");
+        asyncConfigSaver.saveAsync(basePath + "send-permission", channel.getSendPermission());
+        asyncConfigSaver.saveAsync(basePath + "receive-permission", channel.getReceivePermission());
+
         // Save radius - use "world" string for world-specific channels
         if (channel.isWorldSpecific()) {
-            config.set(basePath + "radius", "world");
+            asyncConfigSaver.saveAsync(basePath + "radius", "world");
         } else {
-            config.set(basePath + "radius", channel.getRadius());
+            asyncConfigSaver.saveAsync(basePath + "radius", channel.getRadius());
         }
-        
-        config.set(basePath + "cooldown", channel.getCooldown());
-        config.set(basePath + "min-length", channel.getMinLength());
-        config.set(basePath + "max-length", channel.getMaxLength());
+
+        asyncConfigSaver.saveAsync(basePath + "cooldown", channel.getCooldown());
+        asyncConfigSaver.saveAsync(basePath + "min-length", channel.getMinLength());
+        asyncConfigSaver.saveAsync(basePath + "max-length", channel.getMaxLength());
     }
 
     /**
