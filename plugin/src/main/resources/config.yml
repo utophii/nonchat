@@ -157,6 +157,14 @@ mention-colors:
   color: "&#FFAFFB"
 
 # ==================================================
+# MENTIONS
+# Configure how players can be mentioned in chat.
+# ==================================================
+mentions:
+  # If true, typing an online player's name mentions them even without '@'.
+  allow-without-at: false
+
+# ==================================================
 # CUSTOM CHANNELS
 # Define chat channels with unique settings.
 #

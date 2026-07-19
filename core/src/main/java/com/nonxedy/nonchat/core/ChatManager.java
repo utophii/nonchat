@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -37,7 +38,7 @@ public class ChatManager {
     private final PluginConfig config;
     private final PluginMessages messages;
     private final ChannelManager channelManager;
-    private final Pattern mentionPattern = Pattern.compile("@(\\w+)");
+    private final Pattern atMentionPattern = Pattern.compile("@(\\w+)");
     private final Map<Player, List<?>> bubbles = new ConcurrentHashMap<>();
     private final Map<Player, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
     private IgnoreCommand ignoreCommand;
@@ -537,10 +538,37 @@ public class ChatManager {
         return false;
     }
 
+    /**
+     * Builds the matcher used to detect mentions in a message.
+     * When mentions are restricted to the '@' prefix, any "@word" counts as a mention
+     * candidate and gets filtered against online players afterward. When bare-name
+     * mentions are allowed, matches are restricted upfront to currently online
+     * player names (with an optional '@' prefix) to avoid flagging ordinary words.
+     */
+    private Matcher getMentionMatcher(String message) {
+        if (!config.isMentionWithoutAtEnabled()) {
+            return atMentionPattern.matcher(message);
+        }
+
+        List<String> onlineNames = Bukkit.getOnlinePlayers().stream()
+                .map(Player::getName)
+                .map(Pattern::quote)
+                .collect(Collectors.toList());
+
+        if (onlineNames.isEmpty()) {
+            return atMentionPattern.matcher(message);
+        }
+
+        Pattern bareNamePattern = Pattern.compile(
+                "@?\\b(" + String.join("|", onlineNames) + ")\\b",
+                Pattern.CASE_INSENSITIVE);
+        return bareNamePattern.matcher(message);
+    }
+
     private void handleMentions(Player sender, String message) {
         // Find all mentions in the message (strip colors first to avoid false matches)
         String messageToCheck = ColorUtil.stripAllColors(message);
-        Matcher mentionMatcher = mentionPattern.matcher(messageToCheck);
+        Matcher mentionMatcher = getMentionMatcher(messageToCheck);
 
         // Collect all the names found into a list and process with Stream API
         List<String> mentionedNames = new ArrayList<>();
@@ -597,7 +625,7 @@ public class ChatManager {
         }
 
         String mentionColor = config.getMentionColor();
-        Matcher mentionMatcher = mentionPattern.matcher(message);
+        Matcher mentionMatcher = getMentionMatcher(message);
 
         // Use StringBuilder for efficient string manipulation
         StringBuilder coloredMessage = new StringBuilder(message.length() + 32); // Add some buffer for color codes
