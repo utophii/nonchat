@@ -20,7 +20,7 @@ import com.nonxedy.nonchat.util.special.ping.PingDetector;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
@@ -552,8 +552,8 @@ public class BaseChannel implements Channel {
             }
         }
 
-        // Use TextComponent.Builder instead of Component.Builder
-        TextComponent.Builder builder = Component.text();
+        // Use ComponentBuilder<?, ?> to avoid TextComponent.Builder.build() return type incompatibility across Adventure versions
+        ComponentBuilder<?, ?> builder = Component.text();
 
         // Split by [item] and [ping] and process each part
         String[] parts = processedMessage.split("(?i)\\[(item|ping)\\]");

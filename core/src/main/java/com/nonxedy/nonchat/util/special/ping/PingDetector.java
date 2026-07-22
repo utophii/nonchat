@@ -10,7 +10,7 @@ import org.bukkit.plugin.Plugin;
 import com.nonxedy.nonchat.Nonchat;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
@@ -47,7 +47,7 @@ public class PingDetector {
             return Component.text(text);
         }
         
-        TextComponent.Builder builder = Component.text().content("");
+        ComponentBuilder<?, ?> builder = Component.text().content("");
         Matcher matcher = PING_PATTERN.matcher(text);
         int lastEnd = 0;
         boolean foundPing = false;
