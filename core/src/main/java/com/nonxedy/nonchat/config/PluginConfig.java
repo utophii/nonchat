@@ -606,6 +606,14 @@ public class PluginConfig {
     }
 
     /**
+     * Checks if players can be mentioned by typing their name without the '@' prefix
+     * @return true if bare player names should also trigger mentions
+     */
+    public boolean isMentionWithoutAtEnabled() {
+        return config.getBoolean("mentions.allow-without-at", false);
+    }
+
+    /**
      * Gets private chat sender message format
      * @return Private chat sender format string
      */

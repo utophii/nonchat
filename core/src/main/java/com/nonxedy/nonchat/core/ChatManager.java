@@ -37,7 +37,8 @@ public class ChatManager {
     private final PluginConfig config;
     private final PluginMessages messages;
     private final ChannelManager channelManager;
-    private final Pattern mentionPattern = Pattern.compile("@(\\w+)");
+    private final Pattern atMentionPattern = Pattern.compile("@(\\w+)");
+    private final Pattern bareMentionPattern = Pattern.compile("@?\\b(\\w+)\\b");
     private final Map<Player, List<?>> bubbles = new ConcurrentHashMap<>();
     private final Map<Player, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
     private IgnoreCommand ignoreCommand;
@@ -537,10 +538,23 @@ public class ChatManager {
         return false;
     }
 
+    /**
+     * Builds the matcher used to extract mention candidates from a message.
+     * Both patterns are static and compiled once; candidates are always filtered
+     * against currently online players afterward (see {@link #handleMentions} and
+     * {@link #processMentionColoring}), so extraction never needs to depend on
+     * who is online, avoiding per-message pattern compilation and the inconsistent
+     * behavior that came from swapping patterns based on the online player count.
+     */
+    private Matcher getMentionMatcher(String message) {
+        Pattern pattern = config.isMentionWithoutAtEnabled() ? bareMentionPattern : atMentionPattern;
+        return pattern.matcher(message);
+    }
+
     private void handleMentions(Player sender, String message) {
         // Find all mentions in the message (strip colors first to avoid false matches)
         String messageToCheck = ColorUtil.stripAllColors(message);
-        Matcher mentionMatcher = mentionPattern.matcher(messageToCheck);
+        Matcher mentionMatcher = getMentionMatcher(messageToCheck);
 
         // Collect all the names found into a list and process with Stream API
         List<String> mentionedNames = new ArrayList<>();
@@ -550,9 +564,8 @@ public class ChatManager {
 
         // Process the mentions using Stream API
         mentionedNames.stream()
-                .map(Bukkit::getPlayer)
+                .map(Bukkit::getPlayerExact)
                 .filter(java.util.Objects::nonNull)
-                .filter(Player::isOnline)
                 .forEach(player -> notifyMentionedPlayer(player, sender));
     }
 
@@ -597,13 +610,20 @@ public class ChatManager {
         }
 
         String mentionColor = config.getMentionColor();
-        Matcher mentionMatcher = mentionPattern.matcher(message);
+        boolean bareNamesAllowed = config.isMentionWithoutAtEnabled();
+        Matcher mentionMatcher = getMentionMatcher(message);
 
         // Use StringBuilder for efficient string manipulation
         StringBuilder coloredMessage = new StringBuilder(message.length() + 32); // Add some buffer for color codes
         int lastEnd = 0;
 
         while (mentionMatcher.find()) {
+            // The bare-name pattern matches every word in the message, so unlike the
+            // '@'-only pattern it needs an explicit online-player check here to avoid
+            // coloring ordinary words.
+            if (bareNamesAllowed && Bukkit.getPlayerExact(mentionMatcher.group(1)) == null) {
+                continue;
+            }
             // Add text before the mention
             coloredMessage.append(message, lastEnd, mentionMatcher.start());
             // Add the colored mention with reset after it
