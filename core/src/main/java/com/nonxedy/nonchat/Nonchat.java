@@ -43,9 +43,12 @@ import dev.faststats.bukkit.BukkitMetrics;
 import dev.faststats.core.ErrorTracker;
 import dev.faststats.core.data.Metric;
 import lombok.extern.slf4j.Slf4j;
+
+import org.bstats.bukkit.Metrics;
 @Slf4j
 public class Nonchat extends JavaPlugin {
 
+    private static final int BSTATS_PLUGIN_ID = 0; // Update with actual plugin ID from https://bstats.org/what-is-my-plugin-id
     private ChatService chatService;
     private CommandService commandService;
     private ConfigService configService;
@@ -64,6 +67,7 @@ public class Nonchat extends JavaPlugin {
     private PlayerCleanupListener playerCleanupListener;
     private MentionTabCompleteListener mentionTabCompleteListener;
     private IPlatformAdapter platformAdapter;
+    private Metrics bStatsMetrics;
 
     public static final ErrorTracker ERROR_TRACKER = ErrorTracker.contextAware();
     private final BukkitMetrics metrics = BukkitMetrics.factory()
@@ -97,6 +101,7 @@ public class Nonchat extends JavaPlugin {
             registerListeners();
             setupIntegrations();
             metrics.ready();
+            this.bStatsMetrics = new Metrics(this, BSTATS_PLUGIN_ID);
             
             MessageUtil.send(Bukkit.getConsoleSender(), "§d[nonchat] §aplugin enabled");
         } catch (Exception e) {

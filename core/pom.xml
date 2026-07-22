@@ -70,6 +70,10 @@
       <groupId>dev.faststats.metrics</groupId>
       <artifactId>bukkit</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.bstats</groupId>
+      <artifactId>bstats-bukkit</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>

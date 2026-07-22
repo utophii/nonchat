@@ -83,6 +83,12 @@
       <artifactId>nonchat-v26_2_R1</artifactId>
       <version>${project.version}</version>
     </dependency>
+
+    <!-- bStats metrics -->
+    <dependency>
+      <groupId>org.bstats</groupId>
+      <artifactId>bstats-bukkit</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -114,6 +120,10 @@
                 <relocation>
                   <pattern>dev.faststats</pattern>
                   <shadedPattern>com.nonxedy.nonchat.libs.faststats</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.bstats</pattern>
+                  <shadedPattern>com.nonxedy.nonchat.libs.bstats</shadedPattern>
                 </relocation>
               </relocations>
 
