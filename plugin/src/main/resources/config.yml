@@ -175,7 +175,11 @@ mentions:
 #   enabled: (true/false) - Enable or disable the channel.
 #   display-name: ("Name") - Name shown in messages.
 #   format: ("text {placeholders}") - Message format (must include {message}).
-#   radius: (number or 'world') - Chat radius in blocks. -1 for global, 'world' for world-only.
+#   radius: (number, 'world', list of worlds, or map) - Chat radius in blocks. -1 for global, 'world' or list/map of worlds for world-only/multi-world.
+#   For multi-world chat radius use this:
+#     radius:
+#       world1: number
+#       world2: number
 #   character: ('X') - Prefix character to talk in this channel.
 #   send-permission: ("permission.node") - Permission required to send messages.
 #   receive-permission: ("permission.node") - Permission required to receive messages.

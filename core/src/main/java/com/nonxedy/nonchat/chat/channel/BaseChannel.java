@@ -1,5 +1,9 @@
 package com.nonxedy.nonchat.chat.channel;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -35,6 +39,8 @@ public class BaseChannel implements Channel {
     private final String receivePermission;
     private final int radius;
     private final String world;
+    private final List<String> worlds;
+    private final Map<String, Integer> worldRadii;
     private final int cooldown;
     private final int minLength;
     private final int maxLength;
@@ -49,15 +55,29 @@ public class BaseChannel implements Channel {
                        boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
                        int minLength, int maxLength) {
         this(id, displayName, format, prefix, sendPermission, receivePermission, radius,
-                "", enabled, hoverTextUtil, cooldown, minLength, maxLength, "");
+                (List<String>) null, null, enabled, hoverTextUtil, cooldown, minLength, maxLength, "");
     }
-    
+
     /**
-     * Creates a new BaseChannel with all properties including world.
+     * Creates a new BaseChannel with all properties
      */
     public BaseChannel(String id, String displayName, String format, String prefix,
                        String sendPermission, String receivePermission, int radius,
-                       String world, boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
+                       String channelWorld, boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
+                       int minLength, int maxLength, String channelSwitchMessage) {
+        this(id, displayName, format, prefix, sendPermission, receivePermission, radius,
+                channelWorld != null && !channelWorld.isEmpty() ? List.of(channelWorld.toLowerCase()) : List.of(),
+                new ConcurrentHashMap<>(),
+                enabled, hoverTextUtil, cooldown, minLength, maxLength, channelSwitchMessage);
+    }
+
+    /**
+     * Creates a new BaseChannel with all properties
+     */
+    public BaseChannel(String id, String displayName, String format, String prefix,
+                       String sendPermission, String receivePermission, int radius,
+                       List<String> worlds, Map<String, Integer> worldRadii,
+                       boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
                        int minLength, int maxLength, String switchMessage) {
         this.id = id;
         this.displayName = displayName;
@@ -82,7 +102,9 @@ public class BaseChannel implements Channel {
         this.sendPermission = sendPermission;
         this.receivePermission = receivePermission;
         this.radius = radius;
-        this.world = world;
+        this.worlds = worlds != null ? new ArrayList<>(worlds) : new ArrayList<>();
+        this.world = !this.worlds.isEmpty() ? this.worlds.get(0) : "";
+        this.worldRadii = worldRadii != null ? new ConcurrentHashMap<>(worldRadii) : new ConcurrentHashMap<>();
         this.enabled = enabled;
         this.hoverTextUtil = hoverTextUtil;
         this.cooldown = cooldown;
@@ -148,8 +170,18 @@ public class BaseChannel implements Channel {
     }
 
     @Override
+    public List<String> getWorlds() {
+        return worlds;
+    }
+
+    @Override
+    public Map<String, Integer> getWorldRadii() {
+        return worldRadii;
+    }
+
+    @Override
     public boolean isWorldSpecific() {
-        return !world.isEmpty();
+        return worlds != null && !worlds.isEmpty();
     }
 
     @Override
@@ -203,8 +235,29 @@ public class BaseChannel implements Channel {
         // Check if this is a world-specific channel
         if (isWorldSpecific()) {
             // For world-specific channels, check if both players are in the specified world
-            return sender.getWorld().getName().equals(world) && 
-                   recipient.getWorld().getName().equals(world);
+            String senderWorld = sender.getWorld().getName().toLowerCase();
+            String recipientWorld = recipient.getWorld().getName().toLowerCase();
+            
+            if (!senderWorld.equals(recipientWorld)) {
+                return false;
+            }
+            if (!worlds.contains(senderWorld)) {
+                return false;
+            }
+            
+            if (worldRadii.containsKey(senderWorld)) {
+                int worldRadius = worldRadii.get(senderWorld);
+                if (worldRadius < 0) {
+                    return true;
+                }
+                return sender.getLocation().distance(recipient.getLocation()) <= worldRadius;
+            }
+            
+            if (radius >= 0) {
+                return sender.getLocation().distance(recipient.getLocation()) <= radius;
+            }
+            
+            return true;
         }
         
         // For numeric radius, make sure they're in the same world
