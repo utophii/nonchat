@@ -55,7 +55,7 @@ public class BaseChannel implements Channel {
                        boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
                        int minLength, int maxLength) {
         this(id, displayName, format, prefix, sendPermission, receivePermission, radius,
-                (List<String>) null, null, enabled, hoverTextUtil, cooldown, minLength, maxLength, "");
+                new ArrayList<>(), new ConcurrentHashMap<>(), enabled, hoverTextUtil, cooldown, minLength, maxLength, "");
     }
 
     /**
@@ -238,23 +238,20 @@ public class BaseChannel implements Channel {
             String senderWorld = sender.getWorld().getName().toLowerCase();
             String recipientWorld = recipient.getWorld().getName().toLowerCase();
             
-            if (!senderWorld.equals(recipientWorld)) {
-                return false;
-            }
-            if (!worlds.contains(senderWorld)) {
+            if (!worlds.contains(senderWorld) || !worlds.contains(recipientWorld)) {
                 return false;
             }
             
+            int effectiveRadius = radius;
             if (worldRadii.containsKey(senderWorld)) {
-                int worldRadius = worldRadii.get(senderWorld);
-                if (worldRadius < 0) {
-                    return true;
-                }
-                return sender.getLocation().distance(recipient.getLocation()) <= worldRadius;
+                effectiveRadius = worldRadii.get(senderWorld);
             }
             
-            if (radius >= 0) {
-                return sender.getLocation().distance(recipient.getLocation()) <= radius;
+            if (effectiveRadius >= 0) {
+                if (!senderWorld.equals(recipientWorld)) {
+                    return false;
+                }
+                return sender.getLocation().distance(recipient.getLocation()) <= effectiveRadius;
             }
             
             return true;
