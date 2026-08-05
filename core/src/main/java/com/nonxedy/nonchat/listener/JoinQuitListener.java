@@ -15,6 +15,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import com.nonxedy.nonchat.chat.channel.ChannelManager;
 import com.nonxedy.nonchat.config.PluginConfig;
+import com.nonxedy.nonchat.core.ChatManager;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
@@ -28,11 +29,13 @@ public class JoinQuitListener implements Listener {
     
     private final PluginConfig config;
     private final ChannelManager channelManager;
+    private final ChatManager chatManager;
     private final Map<UUID, Boolean> firstJoinCache = new HashMap<>();
     
-    public JoinQuitListener(PluginConfig config, ChannelManager channelManager) {
+    public JoinQuitListener(PluginConfig config, ChannelManager channelManager, ChatManager chatManager) {
         this.config = config;
         this.channelManager = channelManager;
+        this.chatManager = chatManager;
     }
 
     /**
@@ -118,6 +121,9 @@ public class JoinQuitListener implements Listener {
         // Clean up player data from ChannelManager to prevent memory leaks
         if (channelManager != null) {
             channelManager.cleanupPlayer(player);
+        }
+        if (chatManager != null) {
+            chatManager.cleanupPlayer(player);
         }
         
         if (!config.isQuitMessageEnabled()) {

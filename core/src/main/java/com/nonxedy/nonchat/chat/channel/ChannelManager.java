@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -28,8 +29,8 @@ import com.nonxedy.nonchat.util.core.colors.ColorUtil;
  */
 public class ChannelManager {
     private final Map<String, Channel> channels = new ConcurrentHashMap<>();
-    private final Map<Player, Channel> playerChannels = new ConcurrentHashMap<>();
-    private final Map<Player, Long> lastMessageTimes = new ConcurrentHashMap<>();
+    private final Map<UUID, Channel> playerChannels = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastMessageTimes = new ConcurrentHashMap<>();
     private String defaultChannelId;
     private final PluginConfig config;
     private final AsyncConfigSaver asyncConfigSaver;
@@ -463,9 +464,10 @@ public class ChannelManager {
 
         // Switch any players using this channel to the default
         Channel defaultChannel = getDefaultChannel();
-        for (Player player : playerChannels.keySet()) {
-            if (playerChannels.get(player).getId().equals(channelId)) {
-                playerChannels.put(player, defaultChannel);
+        for (UUID playerId : playerChannels.keySet()) {
+            Channel activeChannel = playerChannels.get(playerId);
+            if (activeChannel != null && activeChannel.getId().equals(channelId)) {
+                playerChannels.put(playerId, defaultChannel);
             }
         }
 
@@ -753,7 +755,7 @@ public class ChannelManager {
         Channel channel = getChannel(channelId);
 
         if (channel != null && channel.isEnabled()) {
-            playerChannels.put(player, channel);
+            playerChannels.put(player.getUniqueId(), channel);
 
             // Send switch message if configured
             if (channel.hasSwitchMessage()) {
@@ -773,7 +775,7 @@ public class ChannelManager {
      */
     @NotNull
     public Channel getPlayerChannel(Player player) {
-        return playerChannels.getOrDefault(player, getDefaultChannel());
+        return playerChannels.getOrDefault(player.getUniqueId(), getDefaultChannel());
     }
     
     /**
@@ -781,7 +783,7 @@ public class ChannelManager {
      * @param player The player to remove
      */
     public void removePlayerChannel(Player player) {
-        playerChannels.remove(player);
+        playerChannels.remove(player.getUniqueId());
     }
     
     /**
@@ -789,8 +791,8 @@ public class ChannelManager {
      * @param player The player who disconnected
      */
     public void cleanupPlayer(Player player) {
-        playerChannels.remove(player);
-        lastMessageTimes.remove(player);
+        playerChannels.remove(player.getUniqueId());
+        lastMessageTimes.remove(player.getUniqueId());
     }
     
     /**
@@ -798,10 +800,7 @@ public class ChannelManager {
      * @param player The player
      */
     public void recordMessageSent(Player player) {
-        // Clean up old entries to prevent memory leaks
-        lastMessageTimes.entrySet().removeIf(entry -> !entry.getKey().isOnline());
-        
-        lastMessageTimes.put(player, System.currentTimeMillis());
+        lastMessageTimes.put(player.getUniqueId(), System.currentTimeMillis());
     }
     
     /**
@@ -815,7 +814,7 @@ public class ChannelManager {
             return true;
         }
         
-        Long lastMessageTime = lastMessageTimes.get(player);
+        Long lastMessageTime = lastMessageTimes.get(player.getUniqueId());
         if (lastMessageTime == null) {
             return true;
         }
@@ -837,7 +836,7 @@ public class ChannelManager {
             return 0;
         }
         
-        Long lastMessageTime = lastMessageTimes.get(player);
+        Long lastMessageTime = lastMessageTimes.get(player.getUniqueId());
         if (lastMessageTime == null) {
             return 0;
         }

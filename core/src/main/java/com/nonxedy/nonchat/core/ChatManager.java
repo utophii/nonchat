@@ -3,6 +3,7 @@ package com.nonxedy.nonchat.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
@@ -39,8 +40,8 @@ public class ChatManager {
     private final ChannelManager channelManager;
     private final Pattern atMentionPattern = Pattern.compile("@(\\w+)");
     private final Pattern bareMentionPattern = Pattern.compile("@?\\b(\\w+)\\b");
-    private final Map<Player, List<?>> bubbles = new ConcurrentHashMap<>();
-    private final Map<Player, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
+    private final Map<UUID, List<?>> bubbles = new ConcurrentHashMap<>();
+    private final Map<UUID, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
     private IgnoreCommand ignoreCommand;
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
@@ -72,7 +73,7 @@ public class ChatManager {
         plugin.logChatMessage("Incoming: Player=" + player.getName() + " Message=\"" + messageContent + "\"");
 
         // Get or create player-specific lock
-        ReentrantLock lock = playerLocks.computeIfAbsent(player, p -> new ReentrantLock());
+        ReentrantLock lock = playerLocks.computeIfAbsent(player.getUniqueId(), p -> new ReentrantLock());
         lock.lock();
         try {
             ChatProcessingContext context = new ChatProcessingContext(player, messageContent);
@@ -122,7 +123,7 @@ public class ChatManager {
 
             // Clean up lock if player is offline
             if (!player.isOnline()) {
-                playerLocks.remove(player);
+                playerLocks.remove(player.getUniqueId());
             }
         }
     }
@@ -423,29 +424,20 @@ public class ChatManager {
     private void updateBubbles() {
         try {
             // Update bubble positions for online players
-            bubbles.entrySet().stream()
-                    .filter(entry -> entry.getKey().isOnline() && !entry.getValue().isEmpty())
-                    .forEach(entry -> {
-                        try {
-                            Player player = entry.getKey();
-                            Location newLoc = player.getLocation().add(0, config.getChatBubblesHeight(), 0);
-                            plugin.getPlatformAdapter().updateBubblesLocation(entry.getValue(), newLoc);
-                        } catch (Exception e) {
-                            plugin.logError("Error updating bubbles for player " + entry.getKey().getName() + ": "
-                                    + e.getMessage());
-                        }
-                    });
-
-            // Clean up bubbles for offline players
             bubbles.entrySet().removeIf(entry -> {
                 try {
-                    if (!entry.getKey().isOnline()) {
+                    Player player = Bukkit.getPlayer(entry.getKey());
+                    if (player == null || !player.isOnline()) {
                         plugin.getPlatformAdapter().removeBubbles(entry.getValue());
                         return true;
                     }
+                    if (!entry.getValue().isEmpty()) {
+                        Location newLoc = player.getLocation().add(0, config.getChatBubblesHeight(), 0);
+                        plugin.getPlatformAdapter().updateBubblesLocation(entry.getValue(), newLoc);
+                    }
                 } catch (Exception e) {
-                    plugin.logError("Error cleaning up bubbles for offline player: " + e.getMessage());
-                    return true; // Remove entry on error
+                    plugin.logError("Error updating chat bubbles for " + entry.getKey() + ": " + e.getMessage());
+                    return true;
                 }
                 return false;
             });
@@ -468,7 +460,7 @@ public class ChatManager {
 
             // Only add bubbles if they were successfully created
             if (playerBubbles != null && !playerBubbles.isEmpty()) {
-                bubbles.put(player, playerBubbles);
+                bubbles.put(player.getUniqueId(), playerBubbles);
 
                 try {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -504,7 +496,7 @@ public class ChatManager {
 
     private void removeBubble(Player player) {
         try {
-            List<?> playerBubbles = bubbles.remove(player);
+            List<?> playerBubbles = bubbles.remove(player.getUniqueId());
             if (playerBubbles != null) {
                 plugin.getPlatformAdapter().removeBubbles(playerBubbles);
             }
@@ -512,7 +504,7 @@ public class ChatManager {
             plugin.logError("Error removing bubbles for player " + player.getName() + ": " + e.getMessage());
             // Try to clean up the map entry even if removal fails
             try {
-                bubbles.remove(player);
+                bubbles.remove(player.getUniqueId());
             } catch (Exception cleanupError) {
                 plugin.logError("Error cleaning up bubble map for player " + player.getName() + ": "
                         + cleanupError.getMessage());
@@ -828,6 +820,12 @@ public class ChatManager {
 
     public ChannelManager getChannelManager() {
         return channelManager;
+    }
+
+    // Removes player-bound runtime state immediately when a player disconnects
+    public void cleanupPlayer(Player player) {
+        playerLocks.remove(player.getUniqueId());
+        removeBubble(player);
     }
 
     /**

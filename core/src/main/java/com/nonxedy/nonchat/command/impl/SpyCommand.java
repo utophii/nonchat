@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -34,7 +35,7 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
     // Plugin configuration reference
     private final PluginConfig pluginConfig;
     // Set to store players who are currently spying
-    private final Set<Player> spyPlayers;
+    private final Set<UUID> spyPlayers;
 
     // Constructor initializes all necessary dependencies
     public SpyCommand(Nonchat plugin, PluginMessages messages, PluginConfig pluginConfig) {
@@ -86,13 +87,13 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
     private void toggleSpyMode(Player player) {
         try {
             // If player is already spying, disable it
-            if (spyPlayers.contains(player)) {
-                spyPlayers.remove(player);
+            if (spyPlayers.contains(player.getUniqueId())) {
+                spyPlayers.remove(player.getUniqueId());
                 MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("spy-mode-disabled")));
                 plugin.logResponse("Spy mode disabled for " + player.getName());
             } else {
                 // If player is not spying, enable it
-                spyPlayers.add(player);
+                spyPlayers.add(player.getUniqueId());
                 MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("spy-mode-enabled")));
                 plugin.logResponse("Spy mode enabled for " + player.getName());
             }
@@ -118,8 +119,9 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
                 .replace("{message}", plainMessage);
 
         // Send formatted message to all spies except sender and target
-        for (Player spy : spyPlayers) {
-            if (spy != sender && spy != target && spy.isOnline()) {
+        for (UUID spyId : spyPlayers) {
+            Player spy = plugin.getServer().getPlayer(spyId);
+            if (spy != null && !spy.equals(sender) && !spy.equals(target)) {
                 MessageUtil.send(spy, ColorUtil.parseComponent(spyFormat));
                 plugin.logResponse("Spy " + spy.getName() + " received message: " + spyFormat);
             }
@@ -132,15 +134,26 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
      * @return true if player is spying
      */
     public boolean isSpying(Player player) {
-        return spyPlayers.contains(player);
+        return spyPlayers.contains(player.getUniqueId());
     }
 
     /**
-     * Gets set of all spying players
-     * @return Copy of spy players set
+     * Gets the online players with spy mode enabled
+     *
+     * The internal state is UUID-based; this method keeps the previous
+     * Player-based API for integrations without retaining Player instances
+     *
+     * @return Copy of currently online spying players
      */
     public Set<Player> getSpyPlayers() {
-        return new HashSet<>(spyPlayers);
+        Set<Player> players = new HashSet<>();
+        for (UUID spyId : spyPlayers) {
+            Player player = plugin.getServer().getPlayer(spyId);
+            if (player != null) {
+                players.add(player);
+            }
+        }
+        return players;
     }
 
     /**
