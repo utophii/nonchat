@@ -643,9 +643,7 @@ public class ChatManager {
     private boolean broadcastMessage(Player sender, Component message, Channel channel, String originalMessage) {
         // For console, create a simple message without our color modifications to avoid
         // &f appearing
-        String consoleFormat = channel.getFormat().replace("{message}", originalMessage);
-
-        // Apply PlaceholderAPI for console
+        String consoleFormat = channel.getFormat();
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             try {
                 consoleFormat = PlaceholderAPI.setPlaceholders(sender, consoleFormat);
@@ -653,6 +651,7 @@ public class ChatManager {
                 plugin.logError("Error processing format placeholders for console: " + e.getMessage());
             }
         }
+        consoleFormat = consoleFormat.replace("{message}", originalMessage);
 
         // Send to console with processed format
         MessageUtil.send(Bukkit.getConsoleSender(), ColorUtil.parseComponent(consoleFormat));
