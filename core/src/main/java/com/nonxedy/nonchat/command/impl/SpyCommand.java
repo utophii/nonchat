@@ -121,7 +121,9 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
         // Send formatted message to all spies except sender and target
         for (UUID spyId : spyPlayers) {
             Player spy = plugin.getServer().getPlayer(spyId);
-            if (spy != null && !spy.equals(sender) && !spy.equals(target)) {
+            if (spy != null && !spy.equals(sender) && !spy.equals(target)
+                    && (spy.hasPermission("nonchat.spy.all")
+                        || pluginConfig.canPrivateMessage(spy, sender))) {
                 MessageUtil.send(spy, ColorUtil.parseComponent(spyFormat));
                 plugin.logResponse("Spy " + spy.getName() + " received message: " + spyFormat);
             }

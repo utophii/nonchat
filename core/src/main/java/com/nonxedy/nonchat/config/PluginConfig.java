@@ -147,6 +147,12 @@ public class PluginConfig {
         ));
         config.set("private-chat.click-actions.enabled", true);
         config.set("private-chat.click-actions.reply-command", "/msg {sender} ");
+        config.set("private-chat.world-separation.enabled", false);
+        config.set("private-chat.world-separation.groups.main", Arrays.asList(
+            "world",
+            "world_nether",
+            "world_the_end"
+        ));
         config.set("spy-format", "§f{sender} §7-> §f{target}§7: §7{message}");
         
         // Chat bubbles configuration
@@ -698,6 +704,65 @@ public class PluginConfig {
     @NotNull
     public String getPrivateChatReplyCommand() {
         return config.getString("private-chat.click-actions.reply-command", "/msg {sender} ");
+    }
+
+    /**
+     * Checks whether private messages are restricted to configured world groups
+     *
+     * @return true when world separation is enabled
+     */
+    public boolean isPrivateChatWorldSeparationEnabled() {
+        return config.getBoolean("private-chat.world-separation.enabled", false);
+    }
+
+    /**
+     * Checks whether two world names belong to the same private-message scope.
+     * Worlds in the same configured group can communicate. Worlds that are not
+     * in a group can communicate only with that exact world
+     *
+     * @param firstWorld first world name
+     * @param secondWorld second world name
+     * @return true when private messaging is allowed between the worlds
+     */
+    public boolean canPrivateMessageBetweenWorlds(String firstWorld, String secondWorld) {
+        if (!isPrivateChatWorldSeparationEnabled()) {
+            return true;
+        }
+        if (firstWorld == null || secondWorld == null) {
+            return false;
+        }
+        if (firstWorld.equalsIgnoreCase(secondWorld)) {
+            return true;
+        }
+
+        ConfigurationSection groups = config.getConfigurationSection("private-chat.world-separation.groups");
+        if (groups == null) {
+            return false;
+        }
+
+        for (String groupName : groups.getKeys(false)) {
+            List<String> worlds = groups.getStringList(groupName);
+            boolean containsFirst = worlds.stream().anyMatch(world -> world.equalsIgnoreCase(firstWorld));
+            boolean containsSecond = worlds.stream().anyMatch(world -> world.equalsIgnoreCase(secondWorld));
+            if (containsFirst && containsSecond) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks whether two players can exchange private messages under the
+     * configured world-separation policy
+     *
+     * @param sender private-message sender
+     * @param receiver private-message receiver
+     * @return true when the players are in the same private-message scope
+     */
+    public boolean canPrivateMessage(org.bukkit.entity.Player sender, org.bukkit.entity.Player receiver) {
+        return sender != null && receiver != null
+                && canPrivateMessageBetweenWorlds(sender.getWorld().getName(), receiver.getWorld().getName());
     }
 
     /**

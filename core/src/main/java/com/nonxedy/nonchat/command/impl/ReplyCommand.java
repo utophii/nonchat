@@ -65,7 +65,11 @@ public class ReplyCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length > 0) {
-            List<String> mentionSuggestions = MentionCompletionUtil.getMentionSuggestions(sender, args[args.length - 1]);
+            List<String> mentionSuggestions = MentionCompletionUtil.getMentionSuggestions(
+                    sender,
+                    args[args.length - 1],
+                    player -> !(sender instanceof Player senderPlayer)
+                            || messageManager.canPrivateMessage(senderPlayer, player));
             if (!mentionSuggestions.isEmpty()) {
                 return mentionSuggestions;
             }

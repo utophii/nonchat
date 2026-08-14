@@ -65,6 +65,22 @@ public class MessageManager {
     }
 
     public void sendPrivateMessage(Player sender, Player receiver, String message) {
+        // Check if receiver is online and available to receive the message
+        if (receiver == null || !receiver.isOnline()) {
+            // Only show notification if enabled in config
+            if (config.isUndeliveredMessageNotificationEnabled()) {
+                MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("message-not-delivered")));
+            }
+            return;
+        }
+
+        // Re-check the world scope at delivery time. This also protects /reply
+        // when either player has moved to a different world since the last PM
+        if (!config.canPrivateMessage(sender, receiver)) {
+            MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("player-not-found")));
+            return;
+        }
+
         if (ignoreCommand != null && ignoreCommand.isIgnoring(receiver, sender)) {
             MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("ignored-by-target")));
             return;
@@ -73,15 +89,6 @@ public class MessageManager {
         if (ignoreCommand != null && ignoreCommand.isIgnoring(sender, receiver)) {
             MessageUtil.send(sender, ColorUtil.parseComponent(messages.getString("you-are-ignoring-player")
                     .replace("{player}", receiver.getName())));
-            return;
-        }
-
-        // Check if receiver is online and available to receive the message
-        if (receiver == null || !receiver.isOnline()) {
-            // Only show notification if enabled in config
-            if (config.isUndeliveredMessageNotificationEnabled()) {
-                MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("message-not-delivered")));
-            }
             return;
         }
 
@@ -120,6 +127,17 @@ public class MessageManager {
     public Player getLastMessageSender(Player player) {
         UUID lastSenderUUID = lastMessageSender.get(player.getUniqueId());
         return lastSenderUUID != null ? Bukkit.getPlayer(lastSenderUUID) : null;
+    }
+
+    /**
+     * Checks whether a player is in the sender's configured private-message scope.
+     *
+     * @param sender private-message sender
+     * @param receiver candidate receiver
+     * @return true when private messaging is permitted between their worlds
+     */
+    public boolean canPrivateMessage(Player sender, Player receiver) {
+        return config.canPrivateMessage(sender, receiver);
     }
 
     public void clearLastMessageSender(Player player) {
