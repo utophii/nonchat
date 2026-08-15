@@ -3,7 +3,7 @@
 # Plugin created by utophii (@utophii).
 # Published on github https://github.com/utophii/nonchat
 # Published on modrinth https://modrinth.com/plugin/nonchat
-# Version of the plugin: 1.6.3
+# Version of the plugin: ${project.version}
 #
 # - LuckPerms support.
 # - Vault support.
