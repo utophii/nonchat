@@ -111,20 +111,9 @@ public class HoverTextUtil {
     private String processHoverLine(String line, Player player) {
         if (line == null) return "";
         
-        // Get integration data
-        String prefix = IntegrationUtil.getPlayerPrefix(player);
-        String balance = IntegrationUtil.getBalance(player);
-        String playtime = IntegrationUtil.getPlayTime(player);
-        
-        // Replace basic placeholders
-        String processed = line
-            .replace("{player}", player.getName())
-            .replace("{level}", String.valueOf(player.getLevel()))
-            .replace("{prefix}", prefix != null ? prefix : "")
-            .replace("{playtime}", playtime != null ? playtime : "0h")
-            .replace("{balance}", balance != null ? balance : "0");
-    
-        // Process PlaceholderAPI if available
+        // Resolve PAPI in the administrator-configured hover template before
+        // adding player or integration values
+        String processed = line;
         if (usePlaceholderAPI) {
             try {
                 processed = PlaceholderAPI.setPlaceholders(player, processed);
@@ -132,6 +121,19 @@ public class HoverTextUtil {
                 Bukkit.getLogger().log(Level.WARNING, "Error processing placeholder in hover text: {0}", e.getMessage());
             }
         }
+
+        // Get integration data
+        String prefix = IntegrationUtil.getPlayerPrefix(player);
+        String balance = IntegrationUtil.getBalance(player);
+        String playtime = IntegrationUtil.getPlayTime(player);
+        
+        // Replace basic placeholders
+        processed = processed
+            .replace("{player}", player.getName())
+            .replace("{level}", String.valueOf(player.getLevel()))
+            .replace("{prefix}", prefix != null ? prefix : "")
+            .replace("{playtime}", playtime != null ? playtime : "0h")
+            .replace("{balance}", balance != null ? balance : "0");
     
         return processed;
     }

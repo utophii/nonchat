@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.bukkit.command.Command;
@@ -183,10 +185,20 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
                 .replace("{character}", channel.hasPrefix() ? 
                         channel.getPrefix() : messages.getString("channel-info-none"))));
         
-        MessageUtil.send(player, ColorUtil.parseComponent(messages.getString("channel-info-radius")
-                .replace("{radius}", channel.isGlobal() ? 
-                        messages.getString("channel-info-global") : 
-                        String.valueOf(channel.getRadius()))));
+        String radiusDisplay;
+        if (channel.isGlobal()) {
+            radiusDisplay = messages.getString("channel-info-global");
+        } else if (channel.isWorldSpecific()) {
+            if (channel.getWorldRadii() != null && !channel.getWorldRadii().isEmpty()) {
+                radiusDisplay = channel.getWorldRadii().toString();
+            } else {
+                radiusDisplay = String.join(", ", channel.getWorlds());
+            }
+        } else {
+            radiusDisplay = String.valueOf(channel.getRadius());
+        }
+
+        MessageUtil.send(player, ColorUtil.parseComponent(messages.getString("channel-info-radius").replace("{radius}", radiusDisplay)));
         
         return true;
     }
@@ -227,6 +239,8 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
         String sendPermission = "";
         String receivePermission = "";
         int radius = -1; // Global by default
+        List<String> worlds = new ArrayList<>();
+        Map<String, Integer> worldRadii = new ConcurrentHashMap<>();
         int cooldown = 0;
         int minLength = 0;
         int maxLength = 256;
@@ -246,12 +260,43 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
                 sendPermission = arg.substring(5);
             } else if (arg.startsWith("receive:")) {
                 receivePermission = arg.substring(8);
+            } else if (arg.startsWith("worlds:") || arg.startsWith("world:")) {
+                String worldsStr = arg.substring(arg.indexOf(':') + 1);
+                for (String w : worldsStr.split(",")) {
+                    String trimmed = w.toLowerCase().trim();
+                    if (!trimmed.isEmpty() && !worlds.contains(trimmed)) {
+                        worlds.add(trimmed);
+                    }
+                }
             } else if (arg.startsWith("radius:")) {
-                try {
-                    radius = Integer.parseInt(arg.substring(7));
-                } catch (NumberFormatException e) {
-                    MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("invalid-number")));
-                    return true;
+                String rStr = arg.substring(7).toLowerCase().trim();
+                if (rStr.equals("world") || rStr.equals("world-only")) {
+                    radius = -2;
+                    if (worlds.isEmpty()) {
+                        worlds.add("world");
+                    }
+                } else if (rStr.contains(",")) {
+                    radius = -2;
+                    for (String w : rStr.split(",")) {
+                        String trimmed = w.toLowerCase().trim();
+                        if (!trimmed.isEmpty() && !worlds.contains(trimmed)) {
+                            worlds.add(trimmed);
+                        }
+                    }
+                } else {
+                    try {
+                        radius = Integer.parseInt(rStr);
+                    } catch (NumberFormatException e) {
+                        if (!rStr.isEmpty()) {
+                            radius = -2;
+                            if (!worlds.contains(rStr)) {
+                                worlds.add(rStr);
+                            }
+                        } else {
+                            MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("invalid-number")));
+                            return true;
+                        }
+                    }
                 }
             } else if (arg.startsWith("cooldown:")) {
                 try {
@@ -302,7 +347,7 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
         // Create the channel using ChannelManager directly to support multi-character prefixes
         Channel channel = chatManager.getChannelManager().createChannel(
             channelId, displayName, format, prefix, 
-            sendPermission, receivePermission, radius,
+            sendPermission, receivePermission, radius, worlds, worldRadii,
             cooldown, minLength, maxLength, switchMessage
         );
         
@@ -346,6 +391,8 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
         String sendPermission = null;
         String receivePermission = null;
         Integer radius = null;
+        List<String> worlds = null;
+        Map<String, Integer> worldRadii = null;
         Boolean enabled = null;
         Integer cooldown = null;
         Integer minLength = null;
@@ -367,12 +414,47 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
                 sendPermission = arg.substring(5);
             } else if (arg.startsWith("receive:")) {
                 receivePermission = arg.substring(8);
+            } else if (arg.startsWith("worlds:") || arg.startsWith("world:")) {
+                if (worlds == null) worlds = new ArrayList<>();
+                String worldsStr = arg.substring(arg.indexOf(':') + 1);
+                for (String w : worldsStr.split(",")) {
+                    String trimmed = w.toLowerCase().trim();
+                    if (!trimmed.isEmpty() && !worlds.contains(trimmed)) {
+                        worlds.add(trimmed);
+                    }
+                }
             } else if (arg.startsWith("radius:")) {
-                try {
-                    radius = Integer.valueOf(arg.substring(7));
-                } catch (NumberFormatException e) {
-                    MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("invalid-number")));
-                    return true;
+                String rStr = arg.substring(7).toLowerCase().trim();
+                if (rStr.equals("world") || rStr.equals("world-only")) {
+                    radius = -2;
+                    if (worlds == null) worlds = new ArrayList<>();
+                    if (worlds.isEmpty()) {
+                        worlds.add("world");
+                    }
+                } else if (rStr.contains(",")) {
+                    radius = -2;
+                    if (worlds == null) worlds = new ArrayList<>();
+                    for (String w : rStr.split(",")) {
+                        String trimmed = w.toLowerCase().trim();
+                        if (!trimmed.isEmpty() && !worlds.contains(trimmed)) {
+                            worlds.add(trimmed);
+                        }
+                    }
+                } else {
+                    try {
+                        radius = Integer.valueOf(rStr);
+                    } catch (NumberFormatException e) {
+                        if (!rStr.isEmpty()) {
+                            radius = -2;
+                            if (worlds == null) worlds = new ArrayList<>();
+                            if (!worlds.contains(rStr)) {
+                                worlds.add(rStr);
+                            }
+                        } else {
+                            MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("invalid-number")));
+                            return true;
+                        }
+                    }
                 }
             } else if (arg.startsWith("enabled:")) {
                 enabled = arg.substring(8).equalsIgnoreCase("true");
@@ -425,7 +507,7 @@ public class ChannelCommand implements CommandExecutor, TabCompleter {
         // Update the channel using ChannelManager directly to support multi-character prefixes
         boolean success = chatManager.getChannelManager().updateChannel(
             channelId, displayName, format, prefix,
-            sendPermission, receivePermission, radius, enabled,
+            sendPermission, receivePermission, radius, worlds, worldRadii, enabled,
             cooldown, minLength, maxLength, switchMessage
         );
         

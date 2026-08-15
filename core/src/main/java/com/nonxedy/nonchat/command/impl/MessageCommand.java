@@ -118,6 +118,17 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        // Treat players outside the sender's private-message world scope as unavailable.
+        // This deliberately uses the same response as an offline/unknown player so the
+        // restriction does not leak players from other scopes
+        if (sender instanceof Player player && !config.canPrivateMessage(player, target)) {
+            MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("player-not-found")));
+            if (plugin != null) {
+                plugin.logError("Player " + sender.getName() + " tried to message a player outside their world scope.");
+            }
+            return true;
+        }
+
         // Check if target player has ignored the sender
         if (isIgnored(sender, target)) {
             MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("ignored-by-target")));
@@ -284,6 +295,9 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
     
         if (args.length == 1) {
             return Bukkit.getOnlinePlayers().stream()
+                    .filter(player -> !(sender instanceof Player senderPlayer) || senderPlayer.canSee(player))
+                    .filter(player -> !(sender instanceof Player senderPlayer)
+                            || config.canPrivateMessage(senderPlayer, player))
                     .map(Player::getName)
                     .filter(name -> !name.equals(sender.getName()))
                     .filter(name -> name.toLowerCase().startsWith(args[0].toLowerCase()))
@@ -291,7 +305,11 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         }
     
         if (args.length >= 2) {
-            List<String> mentionSuggestions = MentionCompletionUtil.getMentionSuggestions(sender, args[args.length - 1]);
+            List<String> mentionSuggestions = MentionCompletionUtil.getMentionSuggestions(
+                    sender,
+                    args[args.length - 1],
+                    player -> !(sender instanceof Player senderPlayer)
+                            || config.canPrivateMessage(senderPlayer, player));
             if (!mentionSuggestions.isEmpty()) {
                 return mentionSuggestions;
             }

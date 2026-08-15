@@ -157,10 +157,9 @@ public final class UpdateChecker implements Listener {
         try {
             MessageUtil.send(player, ColorUtil.parseComponent("&#FFAFFB[nonchat] &#ffffff A new version is available: &#FFAFFB" + latestVersion));
         
-            Component downloadMessage = Component.text()
+            Component downloadMessage = Component.empty()
                 .append(ColorUtil.parseComponent("&#FFAFFB[nonchat] &#ffffffDownload: "))
-                .append(LinkDetector.makeLinksClickable(downloadUrl))
-                .build();
+                .append(LinkDetector.makeLinksClickable(downloadUrl));
         
             MessageUtil.send(player, downloadMessage);
             

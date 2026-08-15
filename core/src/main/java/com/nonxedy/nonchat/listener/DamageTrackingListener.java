@@ -1,9 +1,5 @@
 package com.nonxedy.nonchat.listener;
 
-import com.nonxedy.nonchat.config.DeathConfig;
-import com.nonxedy.nonchat.core.IndirectDeathTracker;
-import com.nonxedy.nonchat.util.core.debugging.Debugger;
-import com.nonxedy.nonchat.util.death.DamageType;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -14,6 +10,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.projectiles.ProjectileSource;
+
+import com.nonxedy.nonchat.config.DeathConfig;
+import com.nonxedy.nonchat.core.IndirectDeathTracker;
+import com.nonxedy.nonchat.util.core.debugging.Debugger;
+import com.nonxedy.nonchat.util.death.DamageType;
 
 /**
  * Listens to damage events and records them for indirect death tracking.
@@ -60,7 +61,7 @@ public class DamageTrackingListener implements Listener {
         
         double damageInHearts = event.getFinalDamage() / 2.0;
         if (damageInHearts < minimumDamage) {
-            if (deathConfig.isDebugEnabled()) {
+            if (deathConfig.isDebugEnabled() && debugger != null) {
                 debugger.debug("DamageTrackingListener", String.format(
                     "Damage below threshold: %s -> %s (%.1f hearts < %.1f hearts minimum)",
                     event.getDamager().getType().name(),
@@ -74,7 +75,7 @@ public class DamageTrackingListener implements Listener {
         
         Player damager = extractDamager(event.getDamager());
         if (damager == null) {
-            if (deathConfig.isDebugEnabled()) {
+            if (deathConfig.isDebugEnabled() && debugger != null) {
                 debugger.debug("DamageTrackingListener", String.format(
                     "No player damager found for damage to %s (damager type: %s)",
                     victim.getName(),
@@ -85,7 +86,7 @@ public class DamageTrackingListener implements Listener {
         }
         
         if (victim.getUniqueId().equals(damager.getUniqueId())) {
-            if (deathConfig.isDebugEnabled()) {
+            if (deathConfig.isDebugEnabled() && debugger != null) {
                 debugger.debug("DamageTrackingListener", String.format(
                     "Ignoring self-damage: %s",
                     victim.getName()
@@ -97,7 +98,7 @@ public class DamageTrackingListener implements Listener {
         DamageType damageType = classifyDamageType(event);
         tracker.recordDamage(victim, damager, damageType);
         
-        if (deathConfig.isDebugEnabled()) {
+        if (deathConfig.isDebugEnabled() && debugger != null) {
             debugger.info("DamageTrackingListener", String.format(
                 "Recorded %s damage: %s -> %s (%.1f hearts, cause: %s)",
                 damageType.name(),
@@ -129,7 +130,7 @@ public class DamageTrackingListener implements Listener {
             Projectile projectile = (Projectile) damager;
             ProjectileSource shooter = projectile.getShooter();
             if (shooter == null) {
-                if (deathConfig.isDebugEnabled()) {
+                if (deathConfig.isDebugEnabled() && debugger != null) {
                     debugger.debug("DamageTrackingListener", "Projectile has null shooter");
                 }
                 return null;

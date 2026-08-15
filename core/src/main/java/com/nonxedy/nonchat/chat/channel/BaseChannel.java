@@ -1,5 +1,9 @@
 package com.nonxedy.nonchat.chat.channel;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,7 +24,7 @@ import com.nonxedy.nonchat.util.special.ping.PingDetector;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.ComponentBuilder;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
@@ -35,6 +39,8 @@ public class BaseChannel implements Channel {
     private final String receivePermission;
     private final int radius;
     private final String world;
+    private final List<String> worlds;
+    private final Map<String, Integer> worldRadii;
     private final int cooldown;
     private final int minLength;
     private final int maxLength;
@@ -49,15 +55,29 @@ public class BaseChannel implements Channel {
                        boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
                        int minLength, int maxLength) {
         this(id, displayName, format, prefix, sendPermission, receivePermission, radius,
-                "", enabled, hoverTextUtil, cooldown, minLength, maxLength, "");
+                new ArrayList<>(), new ConcurrentHashMap<>(), enabled, hoverTextUtil, cooldown, minLength, maxLength, "");
     }
-    
+
     /**
-     * Creates a new BaseChannel with all properties including world.
+     * Creates a new BaseChannel with all properties
      */
     public BaseChannel(String id, String displayName, String format, String prefix,
                        String sendPermission, String receivePermission, int radius,
-                       String world, boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
+                       String channelWorld, boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
+                       int minLength, int maxLength, String channelSwitchMessage) {
+        this(id, displayName, format, prefix, sendPermission, receivePermission, radius,
+                channelWorld != null && !channelWorld.isEmpty() ? List.of(channelWorld.toLowerCase()) : List.of(),
+                new ConcurrentHashMap<>(),
+                enabled, hoverTextUtil, cooldown, minLength, maxLength, channelSwitchMessage);
+    }
+
+    /**
+     * Creates a new BaseChannel with all properties
+     */
+    public BaseChannel(String id, String displayName, String format, String prefix,
+                       String sendPermission, String receivePermission, int radius,
+                       List<String> worlds, Map<String, Integer> worldRadii,
+                       boolean enabled, HoverTextUtil hoverTextUtil, int cooldown,
                        int minLength, int maxLength, String switchMessage) {
         this.id = id;
         this.displayName = displayName;
@@ -82,7 +102,9 @@ public class BaseChannel implements Channel {
         this.sendPermission = sendPermission;
         this.receivePermission = receivePermission;
         this.radius = radius;
-        this.world = world;
+        this.worlds = worlds != null ? new ArrayList<>(worlds) : new ArrayList<>();
+        this.world = !this.worlds.isEmpty() ? this.worlds.get(0) : "";
+        this.worldRadii = worldRadii != null ? new ConcurrentHashMap<>(worldRadii) : new ConcurrentHashMap<>();
         this.enabled = enabled;
         this.hoverTextUtil = hoverTextUtil;
         this.cooldown = cooldown;
@@ -148,8 +170,18 @@ public class BaseChannel implements Channel {
     }
 
     @Override
+    public List<String> getWorlds() {
+        return worlds;
+    }
+
+    @Override
+    public Map<String, Integer> getWorldRadii() {
+        return worldRadii;
+    }
+
+    @Override
     public boolean isWorldSpecific() {
-        return !world.isEmpty();
+        return worlds != null && !worlds.isEmpty();
     }
 
     @Override
@@ -203,8 +235,26 @@ public class BaseChannel implements Channel {
         // Check if this is a world-specific channel
         if (isWorldSpecific()) {
             // For world-specific channels, check if both players are in the specified world
-            return sender.getWorld().getName().equals(world) && 
-                   recipient.getWorld().getName().equals(world);
+            String senderWorld = sender.getWorld().getName().toLowerCase();
+            String recipientWorld = recipient.getWorld().getName().toLowerCase();
+            
+            if (!worlds.contains(senderWorld) || !worlds.contains(recipientWorld)) {
+                return false;
+            }
+            
+            int effectiveRadius = radius;
+            if (worldRadii.containsKey(senderWorld)) {
+                effectiveRadius = worldRadii.get(senderWorld);
+            }
+            
+            if (effectiveRadius >= 0) {
+                if (!senderWorld.equals(recipientWorld)) {
+                    return false;
+                }
+                return sender.getLocation().distance(recipient.getLocation()) <= effectiveRadius;
+            }
+            
+            return true;
         }
         
         // For numeric radius, make sure they're in the same world
@@ -552,8 +602,8 @@ public class BaseChannel implements Channel {
             }
         }
 
-        // Use TextComponent.Builder instead of Component.Builder
-        TextComponent.Builder builder = Component.text();
+        // Use ComponentBuilder<?, ?> to avoid TextComponent.Builder.build() return type incompatibility across Adventure versions
+        ComponentBuilder<?, ?> builder = Component.text();
 
         // Split by [item] and [ping] and process each part
         String[] parts = processedMessage.split("(?i)\\[(item|ping)\\]");

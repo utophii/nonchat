@@ -197,7 +197,9 @@ public class ConfigurablePlaceholder implements InteractivePlaceholder {
     }
 
     private Component processPlaceholders(Player player, String text) {
-        String processed = text;
+        // PAPI may evaluate only administrator-configured templates. Item names,
+        // lore and player-derived values are added after this step
+        String processed = applyPlaceholderApi(player, text);
 
         // Replace basic placeholders
         processed = processed.replace("{player}", player.getName());
@@ -223,17 +225,19 @@ public class ConfigurablePlaceholder implements InteractivePlaceholder {
             processed = processed.replace("{ping_quality}", quality);
         }
 
-        // Process PlaceholderAPI placeholders if available
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            try {
-                processed = PlaceholderAPI.setPlaceholders(player, processed);
-            } catch (Exception e) {
-                // Ignore PlaceholderAPI errors
-            }
-        }
-
         // Convert color codes
         return ColorUtil.parseComponent(processed);
+    }
+
+    private String applyPlaceholderApi(Player player, String template) {
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") == null) {
+            return template;
+        }
+        try {
+            return PlaceholderAPI.setPlaceholders(player, template);
+        } catch (Exception ignored) {
+            return template;
+        }
     }
 
     private String processItemPlaceholders(String text, Player player, ItemStack item) {
@@ -313,7 +317,8 @@ public class ConfigurablePlaceholder implements InteractivePlaceholder {
     }
 
     private String processPlaceholdersAsString(Player player, String text) {
-        String processed = text;
+        // Keep click-action values subject to the same safe ordering
+        String processed = applyPlaceholderApi(player, text);
 
         // Replace basic placeholders
         processed = processed.replace("{player}", player.getName());
@@ -337,15 +342,6 @@ public class ConfigurablePlaceholder implements InteractivePlaceholder {
             processed = processed.replace("{ping}", String.valueOf(ping));
             String quality = ping < 100 ? "Excellent" : ping < 300 ? "Good" : "Poor";
             processed = processed.replace("{ping_quality}", quality);
-        }
-
-        // Process PlaceholderAPI placeholders if available
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            try {
-                processed = PlaceholderAPI.setPlaceholders(player, processed);
-            } catch (Exception e) {
-                // Ignore PlaceholderAPI errors
-            }
         }
 
         // Return processed string (don't convert to Component)

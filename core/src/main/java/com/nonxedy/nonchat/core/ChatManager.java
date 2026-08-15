@@ -3,6 +3,7 @@ package com.nonxedy.nonchat.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
@@ -37,9 +38,10 @@ public class ChatManager {
     private final PluginConfig config;
     private final PluginMessages messages;
     private final ChannelManager channelManager;
-    private final Pattern mentionPattern = Pattern.compile("@(\\w+)");
-    private final Map<Player, List<?>> bubbles = new ConcurrentHashMap<>();
-    private final Map<Player, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
+    private final Pattern atMentionPattern = Pattern.compile("@(\\w+)");
+    private final Pattern bareMentionPattern = Pattern.compile("@?\\b(\\w+)\\b");
+    private final Map<UUID, List<?>> bubbles = new ConcurrentHashMap<>();
+    private final Map<UUID, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
     private IgnoreCommand ignoreCommand;
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
@@ -71,7 +73,7 @@ public class ChatManager {
         plugin.logChatMessage("Incoming: Player=" + player.getName() + " Message=\"" + messageContent + "\"");
 
         // Get or create player-specific lock
-        ReentrantLock lock = playerLocks.computeIfAbsent(player, p -> new ReentrantLock());
+        ReentrantLock lock = playerLocks.computeIfAbsent(player.getUniqueId(), p -> new ReentrantLock());
         lock.lock();
         try {
             ChatProcessingContext context = new ChatProcessingContext(player, messageContent);
@@ -121,7 +123,7 @@ public class ChatManager {
 
             // Clean up lock if player is offline
             if (!player.isOnline()) {
-                playerLocks.remove(player);
+                playerLocks.remove(player.getUniqueId());
             }
         }
     }
@@ -422,29 +424,20 @@ public class ChatManager {
     private void updateBubbles() {
         try {
             // Update bubble positions for online players
-            bubbles.entrySet().stream()
-                    .filter(entry -> entry.getKey().isOnline() && !entry.getValue().isEmpty())
-                    .forEach(entry -> {
-                        try {
-                            Player player = entry.getKey();
-                            Location newLoc = player.getLocation().add(0, config.getChatBubblesHeight(), 0);
-                            plugin.getPlatformAdapter().updateBubblesLocation(entry.getValue(), newLoc);
-                        } catch (Exception e) {
-                            plugin.logError("Error updating bubbles for player " + entry.getKey().getName() + ": "
-                                    + e.getMessage());
-                        }
-                    });
-
-            // Clean up bubbles for offline players
             bubbles.entrySet().removeIf(entry -> {
                 try {
-                    if (!entry.getKey().isOnline()) {
+                    Player player = Bukkit.getPlayer(entry.getKey());
+                    if (player == null || !player.isOnline()) {
                         plugin.getPlatformAdapter().removeBubbles(entry.getValue());
                         return true;
                     }
+                    if (!entry.getValue().isEmpty()) {
+                        Location newLoc = player.getLocation().add(0, config.getChatBubblesHeight(), 0);
+                        plugin.getPlatformAdapter().updateBubblesLocation(entry.getValue(), newLoc);
+                    }
                 } catch (Exception e) {
-                    plugin.logError("Error cleaning up bubbles for offline player: " + e.getMessage());
-                    return true; // Remove entry on error
+                    plugin.logError("Error updating chat bubbles for " + entry.getKey() + ": " + e.getMessage());
+                    return true;
                 }
                 return false;
             });
@@ -467,7 +460,7 @@ public class ChatManager {
 
             // Only add bubbles if they were successfully created
             if (playerBubbles != null && !playerBubbles.isEmpty()) {
-                bubbles.put(player, playerBubbles);
+                bubbles.put(player.getUniqueId(), playerBubbles);
 
                 try {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -503,7 +496,7 @@ public class ChatManager {
 
     private void removeBubble(Player player) {
         try {
-            List<?> playerBubbles = bubbles.remove(player);
+            List<?> playerBubbles = bubbles.remove(player.getUniqueId());
             if (playerBubbles != null) {
                 plugin.getPlatformAdapter().removeBubbles(playerBubbles);
             }
@@ -511,7 +504,7 @@ public class ChatManager {
             plugin.logError("Error removing bubbles for player " + player.getName() + ": " + e.getMessage());
             // Try to clean up the map entry even if removal fails
             try {
-                bubbles.remove(player);
+                bubbles.remove(player.getUniqueId());
             } catch (Exception cleanupError) {
                 plugin.logError("Error cleaning up bubble map for player " + player.getName() + ": "
                         + cleanupError.getMessage());
@@ -537,10 +530,23 @@ public class ChatManager {
         return false;
     }
 
+    /**
+     * Builds the matcher used to extract mention candidates from a message.
+     * Both patterns are static and compiled once; candidates are always filtered
+     * against currently online players afterward (see {@link #handleMentions} and
+     * {@link #processMentionColoring}), so extraction never needs to depend on
+     * who is online, avoiding per-message pattern compilation and the inconsistent
+     * behavior that came from swapping patterns based on the online player count.
+     */
+    private Matcher getMentionMatcher(String message) {
+        Pattern pattern = config.isMentionWithoutAtEnabled() ? bareMentionPattern : atMentionPattern;
+        return pattern.matcher(message);
+    }
+
     private void handleMentions(Player sender, String message) {
         // Find all mentions in the message (strip colors first to avoid false matches)
         String messageToCheck = ColorUtil.stripAllColors(message);
-        Matcher mentionMatcher = mentionPattern.matcher(messageToCheck);
+        Matcher mentionMatcher = getMentionMatcher(messageToCheck);
 
         // Collect all the names found into a list and process with Stream API
         List<String> mentionedNames = new ArrayList<>();
@@ -550,9 +556,8 @@ public class ChatManager {
 
         // Process the mentions using Stream API
         mentionedNames.stream()
-                .map(Bukkit::getPlayer)
+                .map(Bukkit::getPlayerExact)
                 .filter(java.util.Objects::nonNull)
-                .filter(Player::isOnline)
                 .forEach(player -> notifyMentionedPlayer(player, sender));
     }
 
@@ -597,13 +602,20 @@ public class ChatManager {
         }
 
         String mentionColor = config.getMentionColor();
-        Matcher mentionMatcher = mentionPattern.matcher(message);
+        boolean bareNamesAllowed = config.isMentionWithoutAtEnabled();
+        Matcher mentionMatcher = getMentionMatcher(message);
 
         // Use StringBuilder for efficient string manipulation
         StringBuilder coloredMessage = new StringBuilder(message.length() + 32); // Add some buffer for color codes
         int lastEnd = 0;
 
         while (mentionMatcher.find()) {
+            // The bare-name pattern matches every word in the message, so unlike the
+            // '@'-only pattern it needs an explicit online-player check here to avoid
+            // coloring ordinary words.
+            if (bareNamesAllowed && Bukkit.getPlayerExact(mentionMatcher.group(1)) == null) {
+                continue;
+            }
             // Add text before the mention
             coloredMessage.append(message, lastEnd, mentionMatcher.start());
             // Add the colored mention with reset after it
@@ -631,9 +643,7 @@ public class ChatManager {
     private boolean broadcastMessage(Player sender, Component message, Channel channel, String originalMessage) {
         // For console, create a simple message without our color modifications to avoid
         // &f appearing
-        String consoleFormat = channel.getFormat().replace("{message}", originalMessage);
-
-        // Apply PlaceholderAPI for console
+        String consoleFormat = channel.getFormat();
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             try {
                 consoleFormat = PlaceholderAPI.setPlaceholders(sender, consoleFormat);
@@ -641,6 +651,7 @@ public class ChatManager {
                 plugin.logError("Error processing format placeholders for console: " + e.getMessage());
             }
         }
+        consoleFormat = consoleFormat.replace("{message}", originalMessage);
 
         // Send to console with processed format
         MessageUtil.send(Bukkit.getConsoleSender(), ColorUtil.parseComponent(consoleFormat));
@@ -808,6 +819,12 @@ public class ChatManager {
 
     public ChannelManager getChannelManager() {
         return channelManager;
+    }
+
+    // Removes player-bound runtime state immediately when a player disconnects
+    public void cleanupPlayer(Player player) {
+        playerLocks.remove(player.getUniqueId());
+        removeBubble(player);
     }
 
     /**

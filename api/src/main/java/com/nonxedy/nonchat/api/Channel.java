@@ -1,5 +1,8 @@
 package com.nonxedy.nonchat.api;
 
+import java.util.List;
+import java.util.Map;
+
 import org.bukkit.entity.Player;
 
 import net.kyori.adventure.text.Component;
@@ -69,6 +72,18 @@ public interface Channel {
      * @return World name or empty string.
      */
     String getWorld();
+
+    /**
+     * Gets the list of world names for world-specific channels.
+     * @return List of world names.
+     */
+    List<String> getWorlds();
+
+    /**
+     * Gets the map of world-specific radii for this channel.
+     * @return Map of world name to radius.
+     */
+    Map<String, Integer> getWorldRadii();
     
     /**
      * Checks if this is a global channel.

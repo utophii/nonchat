@@ -247,7 +247,7 @@ public class Nonchat extends JavaPlugin {
             }
 
             // Register join/quit listener
-            Bukkit.getPluginManager().registerEvents(new JoinQuitListener(configService.getConfig(), chatManager.getChannelManager()), this);
+            Bukkit.getPluginManager().registerEvents(new JoinQuitListener(configService.getConfig(), chatManager.getChannelManager(), chatManager), this);
             this.mentionTabCompleteListener = new MentionTabCompleteListener();
             Bukkit.getPluginManager().registerEvents(mentionTabCompleteListener, this);
             mentionTabCompleteListener.refreshAllPlayers();

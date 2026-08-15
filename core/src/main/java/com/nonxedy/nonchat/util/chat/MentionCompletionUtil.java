@@ -3,6 +3,7 @@ package com.nonxedy.nonchat.util.chat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -23,6 +24,19 @@ public final class MentionCompletionUtil {
      * @return visible online player names prefixed with @, or an empty list when the token is not a mention
      */
     public static List<String> getMentionSuggestions(CommandSender sender, String lastToken) {
+        return getMentionSuggestions(sender, lastToken, player -> true);
+    }
+
+    /**
+     * Returns @mention suggestions restricted by an additional player filter
+     *
+     * @param sender sender requesting completions
+     * @param lastToken current token/argument being completed
+     * @param playerFilter additional visibility/scope filter
+     * @return matching visible online player names prefixed with @
+     */
+    public static List<String> getMentionSuggestions(CommandSender sender, String lastToken,
+                                                       Predicate<Player> playerFilter) {
         if (lastToken == null || !lastToken.startsWith("@")) {
             return List.of();
         }
@@ -32,6 +46,10 @@ public final class MentionCompletionUtil {
 
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             if (sender instanceof Player player && !player.canSee(onlinePlayer)) {
+                continue;
+            }
+
+            if (!playerFilter.test(onlinePlayer)) {
                 continue;
             }
 

@@ -8,7 +8,7 @@
   <parent>
     <groupId>com.nonxedy.nonchat</groupId>
     <artifactId>nonchat-parent</artifactId>
-    <version>1.6.3</version>
+    <version>${revision}</version>
   </parent>
 
   <artifactId>nonchat-plugin</artifactId>
@@ -87,7 +87,40 @@
 
   <build>
     <finalName>nonchat-${project.version}</finalName>
+
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>plugin.yml</include>
+          <include>config.yml</include>
+          <include>langs/*.yml</include>
+        </includes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>plugin.yml</exclude>
+          <exclude>config.yml</exclude>
+          <exclude>langs/*.yml</exclude>
+        </excludes>
+      </resource>
+    </resources>
+
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <useDefaultDelimiters>false</useDefaultDelimiters>
+          <delimiters>
+            <delimiter>${*}</delimiter>
+          </delimiters>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>

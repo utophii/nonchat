@@ -1,13 +1,15 @@
 package com.nonxedy.nonchat.chat.channel;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
-import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -20,14 +22,15 @@ import com.nonxedy.nonchat.api.ChannelAPI;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.util.AsyncConfigSaver;
 import com.nonxedy.nonchat.util.chat.formatting.HoverTextUtil;
+import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 
 /**
  * Manages all chat channels in the nonchat plugin.
  */
 public class ChannelManager {
     private final Map<String, Channel> channels = new ConcurrentHashMap<>();
-    private final Map<Player, Channel> playerChannels = new ConcurrentHashMap<>();
-    private final Map<Player, Long> lastMessageTimes = new ConcurrentHashMap<>();
+    private final Map<UUID, Channel> playerChannels = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastMessageTimes = new ConcurrentHashMap<>();
     private String defaultChannelId;
     private final PluginConfig config;
     private final AsyncConfigSaver asyncConfigSaver;
@@ -87,25 +90,106 @@ public class ChannelManager {
             
             // Handle radius - can be numeric or "world"
             Object radiusObj = channelSection.get("radius");
+            Object worldsObj = channelSection.get("worlds");
+            if (worldsObj == null) {
+                worldsObj = channelSection.get("world");
+            }
+
             int radius = -1;
-            String world = "";
-            
-            switch (radiusObj) {
-                case String string -> {
-                    String radiusStr = string.toLowerCase().trim();
-                    if (radiusStr.equals("world")) {
-                        radius = -2; // Use -2 to indicate world-specific (not global)
-                        world = "world"; // Default world name, can be configured
-                    } else {
-                        try {
-                            radius = Integer.parseInt(radiusStr);
-                        } catch (NumberFormatException e) {
-                            radius = -1; // Default to global if invalid
+            List<String> worlds = new ArrayList<>();
+            Map<String, Integer> worldRadii = new ConcurrentHashMap<>();
+
+            if (worldsObj != null) {
+                if (worldsObj instanceof List<?> list) {
+                    for (Object item : list) {
+                        if (item != null) {
+                            worlds.add(item.toString().toLowerCase().trim());
+                        }
+                    }
+                } else if (worldsObj instanceof String str) {
+                    for (String w : str.split(",")) {
+                        String trimmed = w.toLowerCase().trim();
+                        if (!trimmed.isEmpty()) {
+                            worlds.add(trimmed);
                         }
                     }
                 }
-                case Integer integer -> radius = integer;
-                default -> {
+            }
+
+            if (radiusObj != null) {
+                if (radiusObj instanceof Integer integer) {
+                    radius = integer;
+                } else if (radiusObj instanceof Long l) {
+                    radius = l.intValue();
+                } else if (radiusObj instanceof String str) {
+                    String s = str.toLowerCase().trim();
+                    if (s.equals("world") || s.equals("world-only") || s.equals("true")) {
+                        radius = -2;
+                        if (worlds.isEmpty()) {
+                            worlds.add("world");
+                        }
+                    } else if (s.contains(",")) {
+                        for (String w : s.split(",")) {
+                            String trimmed = w.toLowerCase().trim();
+                            if (!trimmed.isEmpty()) {
+                                worlds.add(trimmed);
+                            }
+                        }
+                        radius = -2;
+                    } else {
+                        try {
+                            radius = Integer.parseInt(s);
+                        } catch (NumberFormatException e) {
+                            if (!s.isEmpty()) {
+                                worlds.add(s);
+                                radius = -2;
+                            } else {
+                                radius = -1;
+                            }
+                        }
+                    }
+                } else if (radiusObj instanceof List<?> list) {
+                    for (Object item : list) {
+                        if (item != null) {
+                            String itemStr = item.toString().toLowerCase().trim();
+                            if (!itemStr.isEmpty()) {
+                                worlds.add(itemStr);
+                            }
+                        }
+                    }
+                    radius = -2;
+                } else if (radiusObj instanceof ConfigurationSection section) {
+                    radius = -2;
+                    for (String key : section.getKeys(false)) {
+                        String worldName = key.toLowerCase().trim();
+                        Object val = section.get(key);
+                        switch (val) {
+                            case Number num -> {
+                                worldRadii.put(worldName, num.intValue());
+                                if (!worlds.contains(worldName)) {
+                                    worlds.add(worldName);
+                                }
+                            }
+                            case String valStr -> {
+                                try {
+                                    int r = Integer.parseInt(valStr.trim());
+                                    worldRadii.put(worldName, r);
+                                    if (!worlds.contains(worldName)) {
+                                        worlds.add(worldName);
+                                    }
+                                } catch (NumberFormatException e) {
+                                    if (!worlds.contains(worldName)) {
+                                        worlds.add(worldName);
+                                    }
+                                }
+                            }
+                            default -> {
+                                if (!worlds.contains(worldName)) {
+                                    worlds.add(worldName);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             
@@ -117,7 +201,7 @@ public class ChannelManager {
             // Create and register channel
             Channel channel = new BaseChannel(
                 channelId, displayName, format, prefix, sendPermission, receivePermission,
-                radius, world, enabled, hoverTextUtil, cooldown, minLength, maxLength, switchMessage
+                radius, worlds, worldRadii, enabled, hoverTextUtil, cooldown, minLength, maxLength, switchMessage
             );
             
             if (config.isDebug()) {
@@ -196,6 +280,16 @@ public class ChannelManager {
     public Channel createChannel(String channelId, String displayName, String format,
                                 String prefix, String sendPermission, String receivePermission,
                                 int radius, int cooldown, int minLength, int maxLength, String switchMessage) {
+        return createChannel(channelId, displayName, format, prefix, sendPermission, receivePermission, radius, null, null, cooldown, minLength, maxLength, switchMessage);
+    }
+
+    /**
+     * Creates a new channel with the specified properties
+     */
+    public Channel createChannel(String channelId, String displayName, String format,
+                                String prefix, String sendPermission, String receivePermission,
+                                int radius, List<String> worlds, Map<String, Integer> worldRadii,
+                                int cooldown, int minLength, int maxLength, String switchMessage) {
         // Check if channel already exists
         if (channels.containsKey(channelId)) {
             return null;
@@ -237,7 +331,8 @@ public class ChannelManager {
             sendPermission,
             receivePermission,
             radius,
-            "", // Default empty world
+            worlds != null ? worlds : new ArrayList<>(),
+            worldRadii != null ? worldRadii : new ConcurrentHashMap<>(),
             true, // Enabled by default
             config.getHoverTextUtil(),
             cooldown,
@@ -275,6 +370,16 @@ public class ChannelManager {
                                 String prefix, String sendPermission, String receivePermission,
                                 Integer radius, Boolean enabled, Integer cooldown, 
                                 Integer minLength, Integer maxLength, String switchMessage) {
+        return updateChannel(channelId, displayName, format, prefix, sendPermission, receivePermission, radius, null, null, enabled, cooldown, minLength, maxLength, switchMessage);
+    }
+
+    /**
+     * Updates an existing channel with new properties
+     */
+    public boolean updateChannel(String channelId, String displayName, String format,
+                                String prefix, String sendPermission, String receivePermission,
+                                Integer radius, List<String> worlds, Map<String, Integer> worldRadii, Boolean enabled, Integer cooldown, 
+                                Integer minLength, Integer maxLength, String switchMessage) {
         // Get existing channel
         Channel existingChannel = getChannel(channelId);
         if (existingChannel == null) {
@@ -311,7 +416,8 @@ public class ChannelManager {
             sendPermission != null ? sendPermission : existingChannel.getSendPermission(),
             receivePermission != null ? receivePermission : existingChannel.getReceivePermission(),
             radius != null ? radius : existingChannel.getRadius(),
-            existingChannel.getWorld(), // Keep existing world
+            worlds != null ? worlds : existingChannel.getWorlds(),
+            worldRadii != null ? worldRadii : existingChannel.getWorldRadii(),
             enabled != null ? enabled : existingChannel.isEnabled(),
             config.getHoverTextUtil(),
             cooldown != null ? cooldown : existingChannel.getCooldown(),
@@ -358,9 +464,10 @@ public class ChannelManager {
 
         // Switch any players using this channel to the default
         Channel defaultChannel = getDefaultChannel();
-        for (Player player : playerChannels.keySet()) {
-            if (playerChannels.get(player).getId().equals(channelId)) {
-                playerChannels.put(player, defaultChannel);
+        for (UUID playerId : playerChannels.keySet()) {
+            Channel activeChannel = playerChannels.get(playerId);
+            if (activeChannel != null && activeChannel.getId().equals(channelId)) {
+                playerChannels.put(playerId, defaultChannel);
             }
         }
 
@@ -402,7 +509,17 @@ public class ChannelManager {
 
         // Save radius - use "world" string for world-specific channels
         if (channel.isWorldSpecific()) {
-            asyncConfigSaver.saveAsync(basePath + "radius", "world");
+            if (channel.getWorldRadii() != null && !channel.getWorldRadii().isEmpty()) {
+                for (Map.Entry<String, Integer> entry : channel.getWorldRadii().entrySet()) {
+                    asyncConfigSaver.saveAsync(basePath + "radius." + entry.getKey(), entry.getValue());
+                }
+            } else if (channel.getWorlds().size() > 1) {
+                asyncConfigSaver.saveAsync(basePath + "radius", channel.getWorlds());
+            } else if (channel.getWorlds().size() == 1) {
+                asyncConfigSaver.saveAsync(basePath + "radius", channel.getWorlds().get(0));
+            } else {
+                asyncConfigSaver.saveAsync(basePath + "radius", "world");
+            }
         } else {
             asyncConfigSaver.saveAsync(basePath + "radius", channel.getRadius());
         }
@@ -638,7 +755,7 @@ public class ChannelManager {
         Channel channel = getChannel(channelId);
 
         if (channel != null && channel.isEnabled()) {
-            playerChannels.put(player, channel);
+            playerChannels.put(player.getUniqueId(), channel);
 
             // Send switch message if configured
             if (channel.hasSwitchMessage()) {
@@ -658,7 +775,7 @@ public class ChannelManager {
      */
     @NotNull
     public Channel getPlayerChannel(Player player) {
-        return playerChannels.getOrDefault(player, getDefaultChannel());
+        return playerChannels.getOrDefault(player.getUniqueId(), getDefaultChannel());
     }
     
     /**
@@ -666,7 +783,7 @@ public class ChannelManager {
      * @param player The player to remove
      */
     public void removePlayerChannel(Player player) {
-        playerChannels.remove(player);
+        playerChannels.remove(player.getUniqueId());
     }
     
     /**
@@ -674,8 +791,8 @@ public class ChannelManager {
      * @param player The player who disconnected
      */
     public void cleanupPlayer(Player player) {
-        playerChannels.remove(player);
-        lastMessageTimes.remove(player);
+        playerChannels.remove(player.getUniqueId());
+        lastMessageTimes.remove(player.getUniqueId());
     }
     
     /**
@@ -683,10 +800,7 @@ public class ChannelManager {
      * @param player The player
      */
     public void recordMessageSent(Player player) {
-        // Clean up old entries to prevent memory leaks
-        lastMessageTimes.entrySet().removeIf(entry -> !entry.getKey().isOnline());
-        
-        lastMessageTimes.put(player, System.currentTimeMillis());
+        lastMessageTimes.put(player.getUniqueId(), System.currentTimeMillis());
     }
     
     /**
@@ -700,7 +814,7 @@ public class ChannelManager {
             return true;
         }
         
-        Long lastMessageTime = lastMessageTimes.get(player);
+        Long lastMessageTime = lastMessageTimes.get(player.getUniqueId());
         if (lastMessageTime == null) {
             return true;
         }
@@ -722,7 +836,7 @@ public class ChannelManager {
             return 0;
         }
         
-        Long lastMessageTime = lastMessageTimes.get(player);
+        Long lastMessageTime = lastMessageTimes.get(player.getUniqueId());
         if (lastMessageTime == null) {
             return 0;
         }

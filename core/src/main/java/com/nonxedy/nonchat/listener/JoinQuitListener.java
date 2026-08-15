@@ -1,11 +1,13 @@
 package com.nonxedy.nonchat.listener;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,6 +17,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import com.nonxedy.nonchat.chat.channel.ChannelManager;
 import com.nonxedy.nonchat.config.PluginConfig;
+import com.nonxedy.nonchat.core.ChatManager;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
@@ -28,11 +31,13 @@ public class JoinQuitListener implements Listener {
     
     private final PluginConfig config;
     private final ChannelManager channelManager;
+    private final ChatManager chatManager;
     private final Map<UUID, Boolean> firstJoinCache = new HashMap<>();
     
-    public JoinQuitListener(PluginConfig config, ChannelManager channelManager) {
+    public JoinQuitListener(PluginConfig config, ChannelManager channelManager, ChatManager chatManager) {
         this.config = config;
         this.channelManager = channelManager;
+        this.chatManager = chatManager;
     }
 
     /**
@@ -41,17 +46,29 @@ public class JoinQuitListener implements Listener {
      * @return The cleaned sound name in proper format (lowercase with dots)
      */
     private String cleanSoundName(String soundName) {
-        if (soundName == null) {
+        if (soundName == null || soundName.trim().isEmpty()) {
             return "entity.experience_orb.pickup"; // fallback sound
         }
-        
+
         // Remove "minecraft:" prefix if present
-        String cleaned = soundName.replace("minecraft:", "");
-        
-        // Convert from old format (ENTITY_EXPERIENCE_ORB_PICKUP) to new format (entity.experience_orb.pickup)
-        cleaned = cleaned.toLowerCase().replace('_', '.');
-        
-        return cleaned;
+        String cleaned = soundName.trim();
+        if (cleaned.toLowerCase(Locale.ROOT).startsWith("minecraft:")) {
+            cleaned = cleaned.substring("minecraft:".length());
+        }
+
+        // Already in resource-key format (e.g. "entity.experience_orb.pickup")
+        if (cleaned.contains(".")) {
+            return cleaned.toLowerCase(Locale.ROOT);
+        }
+
+        try {
+            Sound sound = Sound.valueOf(cleaned.toUpperCase(Locale.ROOT).replace(' ', '_'));
+            return sound.getKey().getKey();
+        } catch (IllegalArgumentException e) {
+            Bukkit.getLogger().log(Level.WARNING,
+                "Unknown sound name in config: {0} - falling back to naive conversion", soundName);
+            return cleaned.toLowerCase(Locale.ROOT).replace('_', '.');
+        }
     }
     
     /**
@@ -118,6 +135,9 @@ public class JoinQuitListener implements Listener {
         // Clean up player data from ChannelManager to prevent memory leaks
         if (channelManager != null) {
             channelManager.cleanupPlayer(player);
+        }
+        if (chatManager != null) {
+            chatManager.cleanupPlayer(player);
         }
         
         if (!config.isQuitMessageEnabled()) {

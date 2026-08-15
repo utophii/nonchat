@@ -3,7 +3,7 @@
 # Plugin created by utophii (@utophii).
 # Published on github https://github.com/utophii/nonchat
 # Published on modrinth https://modrinth.com/plugin/nonchat
-# Version of the plugin: 1.6.3
+# Version of the plugin: ${project.version}
 #
 # - LuckPerms support.
 # - Vault support.
@@ -157,6 +157,14 @@ mention-colors:
   color: "&#FFAFFB"
 
 # ==================================================
+# MENTIONS
+# Configure how players can be mentioned in chat.
+# ==================================================
+mentions:
+  # If true, typing an online player's name mentions them even without '@'.
+  allow-without-at: false
+
+# ==================================================
 # CUSTOM CHANNELS
 # Define chat channels with unique settings.
 #
@@ -167,7 +175,11 @@ mention-colors:
 #   enabled: (true/false) - Enable or disable the channel.
 #   display-name: ("Name") - Name shown in messages.
 #   format: ("text {placeholders}") - Message format (must include {message}).
-#   radius: (number or 'world') - Chat radius in blocks. -1 for global, 'world' for world-only.
+#   radius: (number, 'world', list of worlds, or map) - Chat radius in blocks. -1 for global, 'world' or list/map of worlds for world-only/multi-world.
+#   For multi-world chat radius use this:
+#     radius:
+#       world1: number
+#       world2: number
 #   character: ('X') - Prefix character to talk in this channel.
 #   send-permission: ("permission.node") - Permission required to send messages.
 #   receive-permission: ("permission.node") - Permission required to receive messages.
@@ -291,6 +303,20 @@ private-chat:
     enabled: true
     # Command executed when clicking to reply. Use {sender} as a placeholder.
     reply-command: "/msg {sender} "
+
+  # Optionally restrict private messages and their player tab-completions by world.
+  world-separation:
+    enabled: false
+    # Worlds in the same group can message one another. Worlds not listed in a
+    # group are isolated to their exact world. World names are case-insensitive.
+    groups:
+      main:
+        - world
+        - world_nether
+        - world_the_end
+      # Example: a player in world1 can only message another player in world1.
+      # world1:
+      #   - world1
 
 # ==================================================
 # SPY COMMAND
