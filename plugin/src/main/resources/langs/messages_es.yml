@@ -82,6 +82,10 @@ invalid-number: "&#ff0000Por favor ingresa un número positivo válido"
 command-error: "&#ff0000Ocurrió un error al ejecutar el comando."
 
 # Formato del mensaje de coordenadas de muerte
+#   %1$s - nombre del mundo
+#   %2$d - coordenada X
+#   %3$d - coordenada Y
+#   %4$d - coordenada Z
 death-coordinates: "&fMoriste en &#FFAFFB%s &fen las coordenadas: &fx:&#FFAFFB%d &fy:&#FFAFFB%d &fz:&#FFAFFB%d"
 
 # Nombres de mundos para coordenadas de muerte

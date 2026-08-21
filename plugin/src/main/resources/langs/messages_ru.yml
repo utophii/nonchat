@@ -80,6 +80,10 @@ invalid-number: "&#ff0000Пожалуйста, используйте допус
 command-error: "&#ff0000Произошла ошибка при выполнении команды."
 
 # Death coordinates message format
+#   %1$s - название мира
+#   %2$d - координата X
+#   %3$d - координата Y
+#   %4$d - координата Z
 death-coordinates: "&fВы умерли в &#FFAFFB%s &fпо координатам: &fx:&#FFAFFB%d &fy:&#FFAFFB%d &fz:&#FFAFFB%d"
 
 # World names for death coordinates
