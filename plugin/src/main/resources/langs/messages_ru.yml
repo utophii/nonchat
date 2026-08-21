@@ -99,9 +99,9 @@ death-messages-load-error: "&#ff0000Ошибка загрузки сообщен
 death-messages-validation-warning: "&#FFAFFBПредупреждение: {warning}"
 
 # Spam detection notifications
-spam-detected-repetitive: "§#FFAFFB[nonchat] §fу {player} обнаружен повторяющийся спам: §#ff0000{message}"
-spam-detected-similar: "§#FFAFFB[nonchat] §fу {player} обнаружен похожий спам: §#ff0000{message}"
-spam-detected-flood: "§#FFAFFB[nonchat] §fу {player} обнаружен флуд-спам: §#ff0000{message}"
+spam-detected-repetitive: "&#FFAFFB[nonchat] &fу {player} обнаружен повторяющийся спам: &#ff0000{message}"
+spam-detected-similar: "&#FFAFFB[nonchat] &fу {player} обнаружен похожий спам: &#ff0000{message}"
+spam-detected-flood: "&#FFAFFB[nonchat] &fу {player} обнаружен флуд-спам: &#ff0000{message}"
 
 # Channel Command
 channel-help-header: "&#FFAFFBКоманды каналов:"

@@ -101,9 +101,9 @@ death-messages-load-error: "&#ff0000Error al cargar mensajes de muerte: {error}"
 death-messages-validation-warning: "&#FFAFFBAdvertencia: {warning}"
 
 # Notificaciones de detección de spam
-spam-detected-repetitive: "§#FFAFFB[nonchat] §f{player} detectó spam repetitivo: §#ff0000{message}"
-spam-detected-similar: "§#FFAFFB[nonchat] §f{player} detectó spam similar: §#ff0000{message}"
-spam-detected-flood: "§#FFAFFB[nonchat] §f{player} detectó spam por flood: §#ff0000{message}"
+spam-detected-repetitive: "&#FFAFFB[nonchat] &f{player} detectó spam repetitivo: &#ff0000{message}"
+spam-detected-similar: "&#FFAFFB[nonchat] &f{player} detectó spam similar: &#ff0000{message}"
+spam-detected-flood: "&#FFAFFB[nonchat] &f{player} detectó spam por flood: &#ff0000{message}"
 
 # Comando de Canal
 channel-help-header: "&#FFAFFBComandos de Canales:"
