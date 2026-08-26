@@ -12,14 +12,13 @@ import org.jetbrains.annotations.Nullable;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import net.kyori.adventure.text.object.ObjectContents;
-import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 import net.md_5.bungee.api.ChatColor;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -743,18 +742,28 @@ public final class ColorUtil {
         });
     }
 
+    /** Available only on Adventure 4.17+ (Paper 1.21+); falls back gracefully otherwise. */
+    private static final boolean MODERN_HEAD_RENDERER_AVAILABLE = detectHeadRenderer();
+
+    private static boolean detectHeadRenderer() {
+        try {
+            Class.forName("net.kyori.adventure.text.object.ObjectContents");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
     private static @NotNull Component createHeadComponent(@NotNull String rawTarget, boolean showHat) {
         String target = rawTarget.trim();
         if (target.isEmpty()) return Component.empty();
 
-        PlayerHeadObjectContents.Builder builder = ObjectContents.playerHead().hat(showHat);
-        UUID uuid = tryParseUuid(target);
-
-        if (uuid != null)                    builder.id(uuid);
-        else if (looksLikeTexturePath(target)) builder.texture(parseTextureKey(target));
-        else                                   builder.name(target);
-
-        return Component.object(builder.build());
+        if (!MODERN_HEAD_RENDERER_AVAILABLE) {
+            // Player-head object contents require Adventure 4.17+ (Paper 1.21+).
+            // On older servers render a graceful text fallback instead of crashing.
+            return Component.text("[" + target + "]", NamedTextColor.GOLD);
+        }
+        return ModernHeadRenderer.render(target, showHat);
     }
 
     private static @Nullable UUID tryParseUuid(@NotNull String value) {

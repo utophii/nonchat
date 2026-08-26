@@ -1,4 +1,4 @@
-package com.nonxedy.nonchat.adapter.v1_19_R3;
+package com.nonxedy.nonchat.adapter;
 
 import com.nonxedy.nonchat.api.ServiceAdapter;
 import java.util.ArrayList;

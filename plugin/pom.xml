@@ -20,49 +20,34 @@
       <artifactId>nonchat-core</artifactId>
     </dependency>
 
-    <!-- Shade Adventure because core/api compile against it and relocation rewrites references -->
+    <!-- Base Adventure API comes bundled with the server (Paper 1.17+) -->
     <dependency>
       <groupId>net.kyori</groupId>
       <artifactId>adventure-api</artifactId>
       <version>${adventure.version}</version>
+      <scope></scope>
     </dependency>
+    <!-- MiniMessage & serializers are NOT bundled in older Paper (1.17-1.18) - shade them -->
     <dependency>
       <groupId>net.kyori</groupId>
       <artifactId>adventure-text-minimessage</artifactId>
       <version>${adventure.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>net.kyori</groupId>
       <artifactId>adventure-text-serializer-plain</artifactId>
       <version>${adventure.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>net.kyori</groupId>
       <artifactId>adventure-text-serializer-legacy</artifactId>
       <version>${adventure.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <!-- All version adapters, ServiceLoader will find any version -->
-    <dependency>
-      <groupId>com.nonxedy.nonchat</groupId>
-      <artifactId>nonchat-v1_16_R3</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.nonxedy.nonchat</groupId>
-      <artifactId>nonchat-v1_17_R1</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.nonxedy.nonchat</groupId>
-      <artifactId>nonchat-v1_18_R2</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.nonxedy.nonchat</groupId>
-      <artifactId>nonchat-v1_19_R3</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <dependency>
       <groupId>com.nonxedy.nonchat</groupId>
       <artifactId>nonchat-v1_20_R4</artifactId>
