@@ -399,6 +399,9 @@ hover-text:
     - "&#FFAFFB► Ping: &#FFFFFF%player_ping%ms" # Ping in PlaceholderAPI
     - "§7"
     - "§8Click to send a private message"
+  # Command suggested when a player clicks a name in chat.
+  # Set to "" to disable the click-to-message action.
+  click-command: "/m %player_name% "
 
 # ==================================================
 # BLOCKED WORDS FILTER
