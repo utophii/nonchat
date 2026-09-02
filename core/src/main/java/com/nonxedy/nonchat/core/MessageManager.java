@@ -5,9 +5,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.Nonchat;
+import com.nonxedy.nonchat.api.event.NonchatPrivateMessageEvent;
 import com.nonxedy.nonchat.command.impl.IgnoreCommand;
 import com.nonxedy.nonchat.command.impl.SpyCommand;
 import com.nonxedy.nonchat.config.PluginConfig;
@@ -65,6 +67,19 @@ public class MessageManager {
     }
 
     public void sendPrivateMessage(Player sender, Player receiver, String message) {
+        sendPrivateMessage(sender, receiver, message, false);
+    }
+
+    /**
+     * Sends a private message, firing {@link NonchatPrivateMessageEvent} so other
+     * plugins can inspect, edit, or cancel it.
+     *
+     * @param sender   message sender (player or console)
+     * @param receiver message recipient
+     * @param message  raw message text
+     * @param reply    {@code true} when this comes from {@code /reply}
+     */
+    public void sendPrivateMessage(CommandSender sender, Player receiver, String message, boolean reply) {
         // Check if receiver is online and available to receive the message
         if (receiver == null || !receiver.isOnline()) {
             // Only show notification if enabled in config
@@ -74,37 +89,58 @@ public class MessageManager {
             return;
         }
 
-        // Re-check the world scope at delivery time. This also protects /reply
-        // when either player has moved to a different world since the last PM
-        if (!config.canPrivateMessage(sender, receiver)) {
-            MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("player-not-found")));
+        Player playerSender = sender instanceof Player player ? player : null;
+
+        if (playerSender != null) {
+            // Re-check the world scope at delivery time. This also protects /reply
+            // when either player has moved to a different world since the last PM
+            if (!config.canPrivateMessage(playerSender, receiver)) {
+                MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("player-not-found")));
+                return;
+            }
+
+            if (ignoreCommand != null && ignoreCommand.isIgnoring(receiver, playerSender)) {
+                MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("ignored-by-target")));
+                return;
+            }
+
+            if (ignoreCommand != null && ignoreCommand.isIgnoring(playerSender, receiver)) {
+                MessageUtil.send(sender, ColorUtil.parseComponent(messages.getString("you-are-ignoring-player")
+                        .replace("{player}", receiver.getName())));
+                return;
+            }
+        }
+
+        NonchatPrivateMessageEvent event = new NonchatPrivateMessageEvent(sender, receiver, message, reply);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
             return;
         }
 
-        if (ignoreCommand != null && ignoreCommand.isIgnoring(receiver, sender)) {
-            MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("ignored-by-target")));
+        receiver = event.getReceiver();
+        message = event.getMessage();
+
+        if (receiver == null || !receiver.isOnline()) {
+            if (config.isUndeliveredMessageNotificationEnabled()) {
+                MessageUtil.send(sender, ColorUtil.parseComponentCached(messages.getString("message-not-delivered")));
+            }
             return;
         }
-
-        if (ignoreCommand != null && ignoreCommand.isIgnoring(sender, receiver)) {
-            MessageUtil.send(sender, ColorUtil.parseComponent(messages.getString("you-are-ignoring-player")
-                    .replace("{player}", receiver.getName())));
-            return;
-        }
-
-        updateReplyTargets(sender, receiver);
 
         // Process message with color permission for sender
         String processedMessage = sender.hasPermission("nonchat.color") ? message : ColorUtil.stripAllColors(message);
 
         // Create and send enhanced formatted messages using new utility
-        Component senderMessage = PrivateMessageUtil.createSenderMessage(config, sender, receiver, processedMessage);
-        Component receiverMessage = PrivateMessageUtil.createReceiverMessage(config, sender, receiver, processedMessage);
+        Component senderMessage = PrivateMessageUtil.createSenderMessage(config, playerSender, receiver, processedMessage);
+        Component receiverMessage = PrivateMessageUtil.createReceiverMessage(config, playerSender, receiver, processedMessage);
 
         MessageUtil.send(sender, senderMessage);
         MessageUtil.send(receiver, receiverMessage);
 
-        spyCommand.onPrivateMessage(sender, receiver, Component.text(processedMessage));
+        if (playerSender != null) {
+            spyCommand.onPrivateMessage(playerSender, receiver, Component.text(processedMessage));
+            updateReplyTargets(playerSender, receiver);
+        }
     }
 
     public void replyToLastMessage(Player sender, String message) {
@@ -121,7 +157,7 @@ public class MessageManager {
             return;
         }
 
-        sendPrivateMessage(sender, receiver, message);
+        sendPrivateMessage(sender, receiver, message, true);
     }
 
     public Player getLastMessageSender(Player player) {
