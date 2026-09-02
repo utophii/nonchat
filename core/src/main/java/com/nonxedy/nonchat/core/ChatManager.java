@@ -107,7 +107,7 @@ public class ChatManager {
             }
 
             // Handle mentions
-            handleMentions(player, context.processedMessage);
+            handleMentions(player, context.processedMessage, context.channel);
 
             // Format and broadcast
             broadcastProcessedMessage(context);
@@ -543,8 +543,7 @@ public class ChatManager {
         return pattern.matcher(message);
     }
 
-    private void handleMentions(Player sender, String message) {
-        // Find all mentions in the message (strip colors first to avoid false matches)
+    private void handleMentions(Player sender, String message, Channel channel) {
         String messageToCheck = ColorUtil.stripAllColors(message);
         Matcher mentionMatcher = getMentionMatcher(messageToCheck);
 
@@ -558,7 +557,9 @@ public class ChatManager {
         mentionedNames.stream()
                 .map(Bukkit::getPlayerExact)
                 .filter(java.util.Objects::nonNull)
-                .forEach(player -> notifyMentionedPlayer(player, sender));
+                .filter(mentioned -> channel.isGlobal() || channel.isInRange(sender, mentioned))
+                .filter(mentioned -> channel.canReceive(mentioned))
+                .forEach(mentioned -> notifyMentionedPlayer(mentioned, sender));
     }
 
     private void notifyMentionedPlayer(Player mentioned, Player sender) {

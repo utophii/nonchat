@@ -188,7 +188,12 @@ public class PluginConfig {
             "§8Click to send a private message"
         );
         config.set("hover-text.format", defaultHoverFormat);
-        
+        // Command suggested when clicking a player's name in chat.
+        // Use {player} as a placeholder for the clicked player's name.
+        // A trailing space is included by default so the message you type
+        // does not run into the name (e.g. "/m utophii hello").
+        config.set("hover-text.click-command", "/m {player} ");
+
         // Banned words
         config.set("banned-words", Arrays.asList("spam", "badword", "anotherbadword", "плохой"));
 
@@ -1214,11 +1219,20 @@ public class PluginConfig {
     }
 
     /**
+     * Gets the command suggested when a player clicks a name in chat.
+     * @return Click command template
+     */
+    @NotNull
+    public String getHoverTextClickCommand() {
+        return config.getString("hover-text.click-command", "/m %player_name% ");
+    }
+
+    /**
      * Gets hover text utility instance
      * @return Configured HoverTextUtil
      */
     public HoverTextUtil getHoverTextUtil() {
-        return new HoverTextUtil(getHoverFormat(), isHoverEnabled());
+        return new HoverTextUtil(getHoverFormat(), isHoverEnabled(), getHoverTextClickCommand());
     }
 
     /**

@@ -251,19 +251,25 @@ public class BaseChannel implements Channel {
                 if (!senderWorld.equals(recipientWorld)) {
                     return false;
                 }
-                return sender.getLocation().distance(recipient.getLocation()) <= effectiveRadius;
+                try {
+                    return sender.getLocation().distance(recipient.getLocation()) <= effectiveRadius;
+                } catch (IllegalArgumentException e) {
+                    return false;
+                }
             }
             
             return true;
         }
-        
-        // For numeric radius, make sure they're in the same world
-        if (sender.getWorld() != recipient.getWorld()) {
+
+        if (!sender.getWorld().getName().equals(recipient.getWorld().getName())) {
             return false;
         }
-        
-        // Check distance
-        return sender.getLocation().distance(recipient.getLocation()) <= radius;
+
+        try {
+            return sender.getLocation().distance(recipient.getLocation()) <= radius;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     @Override

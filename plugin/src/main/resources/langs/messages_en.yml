@@ -80,6 +80,10 @@ invalid-number: "&#ff0000Please enter a valid positive number"
 command-error: "&#ff0000An error occurred while executing the command."
 
 # Death coordinates message format
+#   %1$s - world name
+#   %2$d - X coordinate
+#   %3$d - Y coordinate
+#   %4$d - Z coordinate
 death-coordinates: "&fYou died in &#FFAFFB%s &fat coordinates: &fx:&#FFAFFB%d &fy:&#FFAFFB%d &fz:&#FFAFFB%d"
 
 # World names for death coordinates
@@ -99,9 +103,9 @@ death-messages-load-error: "&#ff0000Error loading death messages: {error}"
 death-messages-validation-warning: "&#FFAFFBWarning: {warning}"
 
 # Spam detection notifications
-spam-detected-repetitive: "§#FFAFFB[nonchat] §f{player} detected repetitive spam: §#ff0000{message}"
-spam-detected-similar: "§#FFAFFB[nonchat] §f{player} detected similar spam: §#ff0000{message}"
-spam-detected-flood: "§#FFAFFB[nonchat] §f{player} detected flood spam: §#ff0000{message}"
+spam-detected-repetitive: "&#FFAFFB[nonchat] &f{player} detected repetitive spam: &#ff0000{message}"
+spam-detected-similar: "&#FFAFFB[nonchat] &f{player} detected similar spam: &#ff0000{message}"
+spam-detected-flood: "&#FFAFFB[nonchat] &f{player} detected flood spam: &#ff0000{message}"
 
 # Channel Command
 channel-help-header: "&#FFAFFBChannel Commands:"

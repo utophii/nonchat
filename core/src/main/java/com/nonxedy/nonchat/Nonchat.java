@@ -219,7 +219,7 @@ public class Nonchat extends JavaPlugin {
             // Register death-related listeners
             if (deathMessageService != null && deathConfig != null) {
                 Bukkit.getPluginManager().registerEvents(new DeathListener(configService.getConfig(), deathMessageService), this);
-                Bukkit.getPluginManager().registerEvents(new DeathCoordinates(deathConfig, configService.getMessages()), this);
+                Bukkit.getPluginManager().registerEvents(new DeathCoordinates(deathConfig, configService.getMessages(), getLogger()), this);
                 
                 // Register damage tracking listener for indirect death tracking (conditional based on master toggle)
                 if (indirectDeathTracker != null && deathConfig.isIndirectTrackingEnabled()) {

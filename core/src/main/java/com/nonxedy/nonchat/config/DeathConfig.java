@@ -69,9 +69,6 @@ public class DeathConfig {
             }
             
             logger.info("Death messages configuration loaded successfully");
-        } catch (org.yaml.snakeyaml.error.YAMLException e) {
-            logger.log(Level.SEVERE, "YAML syntax error in deaths.yml: " + e.getMessage(), e);
-            this.config = new YamlConfiguration();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to load deaths.yml: " + e.getMessage(), e);
             this.config = new YamlConfiguration();

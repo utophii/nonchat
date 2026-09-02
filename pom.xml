@@ -16,10 +16,6 @@
   <modules>
     <module>api</module>
     <module>core</module>
-    <module>v1_16_R3</module>
-    <module>v1_17_R1</module>
-    <module>v1_18_R2</module>
-    <module>v1_19_R3</module>
     <module>v1_20_R4</module>
     <module>v1_21_R1</module>
     <module>v26_1_R1</module>
@@ -38,9 +34,7 @@
     <vault.version>1.7.1</vault.version>
     <lombok.version>1.18.46</lombok.version>
     <caffeine.version>3.2.3</caffeine.version>
-    <snakeyaml.version>2.6</snakeyaml.version>
     <discordsrv.version>1.28.0</discordsrv.version>
-    <commonslang.version>3.20.0</commonslang.version>
     <faststats.version>0.22.0</faststats.version>
     <junit.version>5.11.4</junit.version>
     <surefire.version>3.5.3</surefire.version>
@@ -129,16 +123,6 @@
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
         <version>${caffeine.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.yaml</groupId>
-        <artifactId>snakeyaml</artifactId>
-        <version>${snakeyaml.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-lang3</artifactId>
-        <version>${commonslang.version}</version>
       </dependency>
       <dependency>
         <groupId>dev.faststats.metrics</groupId>
