@@ -151,13 +151,12 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         // Combine all remaining arguments into the message
         String message = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
         
-        // Use service if available, otherwise use direct method
-        if (chatService != null) {
-            if (sender instanceof Player player) {
-                chatService.handlePrivateMessage(player, target, message);
-            } else {
-                sendPrivateMessage(sender, target, message);
-            }
+        // Always deliver through MessageManager when available so
+        // NonchatPrivateMessageEvent fires for /msg the same way as /reply
+        if (plugin != null && plugin.getMessageManager() != null) {
+            plugin.getMessageManager().sendPrivateMessage(sender, target, message, false);
+        } else if (chatService != null && sender instanceof Player player) {
+            chatService.handlePrivateMessage(player, target, message);
         } else {
             sendPrivateMessage(sender, target, message);
         }
