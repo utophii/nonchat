@@ -16,7 +16,6 @@
   <modules>
     <module>api</module>
     <module>core</module>
-    <module>v1_20_R4</module>
     <module>v1_21_R1</module>
     <module>v26_1_R1</module>
     <module>v26_2_R1</module>

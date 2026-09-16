@@ -1,10 +1,10 @@
 name: nonchat
 author: utophii
 main: com.nonxedy.nonchat.Nonchat
-description: The best chat plugin for 1.20-26.3
+description: The best chat plugin for 1.21.6-26.3
 version: ${project.version}
 prefix: nonchat
-api-version: 1.20
+api-version: 1.21
 load: POSTWORLD
 
 depend:

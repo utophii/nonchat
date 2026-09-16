@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import com.nonxedy.nonchat.Nonchat;
+import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
 import github.scarsz.discordsrv.DiscordSRV;
@@ -107,7 +108,7 @@ public class DiscordSRVHook {
             // This is a simple broadcast to all players
             // In a real implementation, you might want to send this only to players in the specific channel
             for (Player player : Bukkit.getOnlinePlayers()) {
-                MessageUtil.send(player, formattedMessage);
+                MessageUtil.send(player, ColorUtil.parseComponentCached(formattedMessage));
             }
         }
     }

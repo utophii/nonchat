@@ -19,7 +19,6 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import net.md_5.bungee.api.ChatColor;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ConcurrentLRUCache
@@ -385,14 +384,6 @@ public final class ColorUtil {
         return result;
     }
 
-    /**
-     * @deprecated Use {@link #stripFormatting(String)} instead.
-     */
-    @Deprecated
-    public static @NotNull String stripAllColors(@NotNull String message) {
-        return stripFormatting(message);
-    }
-
     // ════════════════════════════════════════════════════════════════════════════
     // PUBLIC API — Detection
     // ════════════════════════════════════════════════════════════════════════════
@@ -521,7 +512,7 @@ public final class ColorUtil {
         ampMatcher.appendTail(ampBuffer);
         String preProcessed = ampBuffer.toString();
 
-        String withTranslated = ChatColor.translateAlternateColorCodes('&', preProcessed);
+        String withTranslated = translateAlternateColorCodes('&', preProcessed);
 
         // &#RRGGBB → §x§R§G§B§R§G§B
         Matcher hexMatcher = HEX_PATTERN.matcher(withTranslated);
@@ -538,6 +529,26 @@ public final class ColorUtil {
         String result = buffer.toString();
         COLOR_CACHE.put(message, result);
         return result;
+    }
+
+    /**
+     * Translates {@code &} color/format codes into section ({@code §}) codes.
+     * Drop-in replacement for the deprecated
+     * {@code net.md_5.bungee.api.ChatColor#translateAlternateColorCodes}.
+     *
+     * <p>HEX sequences ({@code &#RRGGBB}) are intentionally left untouched -
+     * they are converted by {@link #HEX_PATTERN} afterwards.
+     */
+    private static @NotNull String translateAlternateColorCodes(char altColorChar, @NotNull String text) {
+        char[] chars = text.toCharArray();
+        for (int i = 0; i < chars.length - 1; i++) {
+            if (chars[i] == altColorChar
+                    && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf(chars[i + 1]) > -1) {
+                chars[i] = '§';
+                chars[i + 1] = Character.toLowerCase(chars[i + 1]);
+            }
+        }
+        return new String(chars);
     }
 
     // ════════════════════════════════════════════════════════════════════════════

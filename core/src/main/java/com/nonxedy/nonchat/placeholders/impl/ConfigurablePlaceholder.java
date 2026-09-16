@@ -255,7 +255,7 @@ public class ConfigurablePlaceholder implements InteractivePlaceholder {
         // getDisplayName()
         // Use ItemLocalizationUtil for proper localization (handles both custom names and material names)
         // Get player's locale for proper translation
-        String playerLocale = player.getLocale();
+        String playerLocale = player.locale().toString();
         Component itemComponent = ItemLocalizationUtil.createTranslatableItemComponent(item, playerLocale);
         
         // Use LegacyComponentSerializer to preserve colors in item name

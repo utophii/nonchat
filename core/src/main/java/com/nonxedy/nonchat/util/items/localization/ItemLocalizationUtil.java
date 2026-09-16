@@ -229,11 +229,11 @@ public class ItemLocalizationUtil {
         String[] parts = locale.split("-");
         
         if (parts.length >= 2) {
-            // Format: ru_RU
-            return new Locale(parts[0], parts[1].toUpperCase());
+            // Format: ru_ru / ru-RU
+            return Locale.of(parts[0], parts[1].toUpperCase(Locale.ROOT));
         } else if (parts.length == 1) {
             // Format: ru
-            return new Locale(parts[0]);
+            return Locale.of(parts[0]);
         }
         
         return Locale.ENGLISH;

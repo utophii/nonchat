@@ -48,13 +48,11 @@ public final class UpdateChecker implements Listener {
     // Constructor to initialize class variables
     public UpdateChecker(Nonchat plugin) {
         this.plugin = plugin;
-        this.currentVersion = plugin.getDescription().getVersion();
+        this.currentVersion = plugin.getPluginMeta().getVersion();
         
-        if (plugin instanceof Nonchat nonchatPlugin) {
-            if (!nonchatPlugin.getConfigService().getConfig().isUpdateCheckerEnabled()) {
-                plugin.logResponse("Update checker is disabled in config");
-                return;
-            }
+        if (!plugin.getConfigService().getConfig().isUpdateCheckerEnabled()) {
+            plugin.logResponse("Update checker is disabled in config");
+            return;
         }
 
         // Register this as an event listener
@@ -98,8 +96,7 @@ public final class UpdateChecker implements Listener {
                 // Parse JSON response to get latest version info
                 JsonObject latestVersion;
                 try (InputStreamReader reader = new InputStreamReader(response.body())) {
-                    latestVersion = new JsonParser()
-                        .parse(reader)
+                    latestVersion = JsonParser.parseReader(reader)
                         .getAsJsonArray()
                         .get(0)
                         .getAsJsonObject();

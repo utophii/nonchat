@@ -7,7 +7,8 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Sound;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -61,14 +62,13 @@ public class JoinQuitListener implements Listener {
             return cleaned.toLowerCase(Locale.ROOT);
         }
 
-        try {
-            Sound sound = Sound.valueOf(cleaned.toUpperCase(Locale.ROOT).replace(' ', '_'));
-            return sound.getKey().getKey();
-        } catch (IllegalArgumentException e) {
+        String candidate = cleaned.toLowerCase(Locale.ROOT).replace('_', '.');
+        NamespacedKey key = NamespacedKey.minecraft(candidate);
+        if (Registry.SOUNDS.get(key) == null) {
             Bukkit.getLogger().log(Level.WARNING,
                 "Unknown sound name in config: {0} - falling back to naive conversion", soundName);
-            return cleaned.toLowerCase(Locale.ROOT).replace('_', '.');
         }
+        return candidate;
     }
     
     /**
