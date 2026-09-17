@@ -274,7 +274,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         String processedMessage;
         if (sender instanceof Player player && !player.hasPermission("nonchat.color")) {
             // Strip all color codes if player doesn't have permission
-            processedMessage = ColorUtil.stripAllColors(message);
+            processedMessage = ColorUtil.stripFormatting(message);
         } else {
             processedMessage = message;
         }
@@ -350,7 +350,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
             }
 
             WordBlocker wordBlocker = config.getWordBlocker();
-            String messageToCheck = ColorUtil.stripAllColors(message);
+            String messageToCheck = ColorUtil.stripFormatting(message);
             if (!wordBlocker.isMessageAllowed(messageToCheck)) {
                 MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
                 return true;

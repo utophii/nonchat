@@ -30,7 +30,7 @@ public class LinkDetector {
             return Component.empty();
         }
 
-        String cleanText = ColorUtil.stripAllColors(text);
+        String cleanText = ColorUtil.stripFormatting(text);
         Matcher matcher = URL_PATTERN.matcher(cleanText);
 
         if (!matcher.find()) {

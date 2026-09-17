@@ -355,7 +355,7 @@ public class BaseChannel implements Channel {
 
         // Check color permission for the message content
         if (!player.hasPermission("nonchat.color")) {
-            processedMessage = ColorUtil.stripAllColors(message);
+            processedMessage = ColorUtil.stripFormatting(message);
         }
 
         // Replace {message} with the processed message content
@@ -442,10 +442,10 @@ public class BaseChannel implements Channel {
                     // Strip colors from the player's message content, but preserve the inherited color
                     if (!inheritedColor.isEmpty() && processedMessage.startsWith(inheritedColor)) {
                         String playerMessagePart = processedMessage.substring(inheritedColor.length());
-                        String strippedPlayerPart = ColorUtil.stripAllColors(playerMessagePart);
+                        String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
                         processedMessage = inheritedColor + strippedPlayerPart;
                     } else {
-                        processedMessage = ColorUtil.stripAllColors(processedMessage);
+                        processedMessage = ColorUtil.stripFormatting(processedMessage);
                     }
                 }
 
@@ -491,10 +491,10 @@ public class BaseChannel implements Channel {
             // Strip colors from the player's message content, but preserve the inherited color
             if (!inheritedColor.isEmpty() && processedMessage.startsWith(inheritedColor)) {
                 String playerMessagePart = processedMessage.substring(inheritedColor.length());
-                String strippedPlayerPart = ColorUtil.stripAllColors(playerMessagePart);
+                String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
                 processedMessage = inheritedColor + strippedPlayerPart;
             } else {
-                processedMessage = ColorUtil.stripAllColors(processedMessage);
+                processedMessage = ColorUtil.stripFormatting(processedMessage);
             }
         }
 
@@ -528,10 +528,10 @@ public class BaseChannel implements Channel {
             // Strip colors from the player's message content, but preserve the inherited color
             if (!inheritedColor.isEmpty() && processedMessage.startsWith(inheritedColor)) {
                 String playerMessagePart = processedMessage.substring(inheritedColor.length());
-                String strippedPlayerPart = ColorUtil.stripAllColors(playerMessagePart);
+                String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
                 processedMessage = inheritedColor + strippedPlayerPart;
             } else {
-                processedMessage = ColorUtil.stripAllColors(processedMessage);
+                processedMessage = ColorUtil.stripFormatting(processedMessage);
             }
         }
 
@@ -565,10 +565,10 @@ public class BaseChannel implements Channel {
             // Strip colors from the player's message content, but preserve the inherited color
             if (!inheritedColor.isEmpty() && processedMessage.startsWith(inheritedColor)) {
                 String playerMessagePart = processedMessage.substring(inheritedColor.length());
-                String strippedPlayerPart = ColorUtil.stripAllColors(playerMessagePart);
+                String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
                 processedMessage = inheritedColor + strippedPlayerPart;
             } else {
-                processedMessage = ColorUtil.stripAllColors(processedMessage);
+                processedMessage = ColorUtil.stripFormatting(processedMessage);
             }
         }
 
@@ -601,10 +601,10 @@ public class BaseChannel implements Channel {
             // Strip colors from the player's message content, but preserve the inherited color
             if (!inheritedColor.isEmpty() && processedMessage.startsWith(inheritedColor)) {
                 String playerMessagePart = processedMessage.substring(inheritedColor.length());
-                String strippedPlayerPart = ColorUtil.stripAllColors(playerMessagePart);
+                String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
                 processedMessage = inheritedColor + strippedPlayerPart;
             } else {
-                processedMessage = ColorUtil.stripAllColors(processedMessage);
+                processedMessage = ColorUtil.stripFormatting(processedMessage);
             }
         }
 

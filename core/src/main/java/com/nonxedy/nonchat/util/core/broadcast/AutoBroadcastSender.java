@@ -123,7 +123,7 @@ public class AutoBroadcastSender {
         }
 
         // Log to console (strip formatting for cleaner logs)
-        plugin.getLogger().info(ColorUtil.stripAllColors(message));
+        plugin.getLogger().info(ColorUtil.stripFormatting(message));
     }
 
     // Stops all broadcast tasks and clears message pools

@@ -111,7 +111,7 @@ public class MessageManager {
         updateReplyTargets(sender, receiver);
 
         // Process message with color permission for sender
-        String processedMessage = sender.hasPermission("nonchat.color") ? message : ColorUtil.stripAllColors(message);
+        String processedMessage = sender.hasPermission("nonchat.color") ? message : ColorUtil.stripFormatting(message);
 
         // Create and send enhanced formatted messages using new utility
         Component senderMessage = PrivateMessageUtil.createSenderMessage(config, sender, receiver, processedMessage);
@@ -203,7 +203,7 @@ public class MessageManager {
             }
 
             WordBlocker wordBlocker = config.getWordBlocker();
-            String messageToCheck = ColorUtil.stripAllColors(message);
+            String messageToCheck = ColorUtil.stripFormatting(message);
             if (!wordBlocker.isMessageAllowed(messageToCheck)) {
                 MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
                 return true;
