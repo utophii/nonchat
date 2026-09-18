@@ -57,7 +57,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         this.spyCommand = spyCommand;
         this.chatService = null;
         this.ignoreCommand = plugin.getIgnoreCommand();
-        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand());
+        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
     }
     
@@ -69,7 +69,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         this.messages = configService.getMessages();
         this.spyCommand = null;
         this.ignoreCommand = null;
-        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand());
+        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
     }
 

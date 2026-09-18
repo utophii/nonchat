@@ -1268,6 +1268,15 @@ public class PluginConfig {
     }
 
     /**
+     * Gets the staff notification message template for detected advertisements
+     * @return Message template with {player} and {message} placeholders
+     */
+    public String getAntiAdNotifyMessage() {
+        return config.getString("anti-ad.notify-message",
+                "&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}");
+    }
+
+    /**
      * Gets the punishment command to execute when advertisement is detected
      * @return Punishment command with %player% placeholder or empty string if no punishment 
      */

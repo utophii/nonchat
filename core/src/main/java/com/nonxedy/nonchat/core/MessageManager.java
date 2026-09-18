@@ -38,7 +38,7 @@ public class MessageManager {
         this.config = config;
         this.messages = messages;
         this.spyCommand = spyCommand;
-        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand());
+        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
     }
 

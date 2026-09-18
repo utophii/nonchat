@@ -454,6 +454,9 @@ anti-ad:
     - "discord.gg/NAWsxe3J3R"
   # Notify staff when an advertisement is detected (requires 'nonchat.ad.notify' permission).
   staff-notify: true
+  # Message sent to staff and console when an advertisement is detected.
+  # {message} - the flagged message
+  notify-message: '&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}'
   # Command to execute when an advertisement is detected. Leave empty for no punishment.
   punish-command: "ban %player_name% advertising"
 
