@@ -83,42 +83,28 @@ public class BroadcastManager {
         }
 
         message = event.getMessage();
-        try {
-            for (Player player : event.getRecipients()) {
-                if (player == null || !player.isOnline()) {
-                    continue;
-                }
-                // Process PAPI placeholders for each player individually
-                String parsedMessage = IntegrationUtil.processPlaceholders(player, message);
-
-                Component formatted;
-                // Check if message contains MiniMessage tags
-                if (ColorUtil.containsMiniMessageTags(parsedMessage)) {
-                    formatted = ColorUtil.parseComponent(parsedMessage);
-                } else {
-                    // Use LinkDetector to make links clickable for legacy messages
-                    formatted = LinkDetector.makeLinksClickable(parsedMessage);
-                }
-                // Try to use Adventure API first
-                MessageUtil.send(player, formatted);
+        for (Player player : event.getRecipients()) {
+            if (player == null || !player.isOnline()) {
+                continue;
             }
+            // Process PAPI placeholders for each player individually
+            String parsedMessage = IntegrationUtil.processPlaceholders(player, message);
 
-            // Console log using the raw message (no player context for PAPI)
-            if (broadcastMessage.isDisplayInConsole()) {
-                String consoleMessage = ColorUtil.stripAllColors(message);
-                plugin.getLogger().info(consoleMessage);
+            Component formatted;
+            // Check if message contains MiniMessage tags
+            if (ColorUtil.containsMiniMessageTags(parsedMessage)) {
+                formatted = ColorUtil.parseComponent(parsedMessage);
+            } else {
+                // Use LinkDetector to make links clickable for legacy messages
+                formatted = LinkDetector.makeLinksClickable(parsedMessage);
             }
+            MessageUtil.send(player, formatted);
+        }
 
-        } catch (NoSuchMethodError e) {
-            // Fall back to traditional Bukkit sendMessage if Adventure API is not available
-            plugin.logError("Adventure API isn't available: " + e.getMessage());
-            for (Player player : event.getRecipients()) {
-                if (player == null || !player.isOnline()) {
-                    continue;
-                }
-                String parsedMessage = IntegrationUtil.processPlaceholders(player, message);
-                MessageUtil.send(player, ColorUtil.parseColor(parsedMessage));
-            }
+        // Console log using the raw message (no player context for PAPI)
+        if (broadcastMessage.isDisplayInConsole()) {
+            String consoleMessage = ColorUtil.stripFormatting(message);
+            plugin.getLogger().info(consoleMessage);
         }
     }
 
