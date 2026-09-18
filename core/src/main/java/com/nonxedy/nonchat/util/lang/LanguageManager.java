@@ -3,6 +3,8 @@ package com.nonxedy.nonchat.util.lang;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,9 +52,28 @@ public class LanguageManager {
         for (File file : langsFolder.listFiles()) {
             if (file.getName().startsWith("messages_") && file.getName().endsWith(".yml")) {
                 String langCode = file.getName().replace("messages_", "").replace(".yml", "");
-                loadedLanguages.put(langCode, YamlConfiguration.loadConfiguration(file));
+                loadedLanguages.put(langCode, loadLanguageFile(file));
             }
         }
+    }
+    
+    /**
+     * Loads a language file and sets the bundled resource as its default values.
+     * Keys added in new plugin versions keep resolving through the bundled file
+     * even when the server still has an older extracted copy of the language file.
+     * @param file The extracted language file
+     * @return Loaded configuration with bundled defaults applied
+     */
+    private YamlConfiguration loadLanguageFile(File file) {
+        YamlConfiguration lang = YamlConfiguration.loadConfiguration(file);
+        try (InputStream in = getClass().getResourceAsStream("/langs/" + file.getName())) {
+            if (in != null) {
+                lang.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8)));
+            }
+        } catch (IOException e) {
+            Bukkit.getLogger().log(Level.WARNING, "Failed to load default language resource: {0}", e.getMessage());
+        }
+        return lang;
     }
     
     /**
@@ -92,7 +113,7 @@ public class LanguageManager {
         for (File file : langsFolder.listFiles()) {
             if (file.getName().startsWith("messages_") && file.getName().endsWith(".yml")) {
                 String langCode = file.getName().replace("messages_", "").replace(".yml", "");
-                loadedLanguages.put(langCode, YamlConfiguration.loadConfiguration(file));
+                loadedLanguages.put(langCode, loadLanguageFile(file));
             }
         }
         

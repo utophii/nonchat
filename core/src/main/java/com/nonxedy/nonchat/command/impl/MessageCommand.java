@@ -48,6 +48,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
     private IgnoreCommand ignoreCommand;
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
+    private final WordBlocker wordBlocker;
 
     // Constructor to initialize all required dependencies
     public MessageCommand(Nonchat plugin, PluginConfig config, PluginMessages messages, SpyCommand spyCommand) {
@@ -59,6 +60,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         this.ignoreCommand = plugin.getIgnoreCommand();
         this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
+        this.wordBlocker = new WordBlocker(config, messages);
     }
     
     // Alternative constructor for service-based architecture
@@ -71,6 +73,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
         this.ignoreCommand = null;
         this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
+        this.wordBlocker = new WordBlocker(config, messages);
     }
 
     public Map<UUID, UUID> getLastMessaged() {
@@ -344,19 +347,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean handleBlockedWords(Player player, String message) {
-        if (!player.hasPermission("nonchat.antiblockedwords")) {
-            if (!config.isWordBlockingEnabled()) {
-                return false;
-            }
-
-            WordBlocker wordBlocker = config.getWordBlocker();
-            String messageToCheck = ColorUtil.stripFormatting(message);
-            if (!wordBlocker.isMessageAllowed(messageToCheck)) {
-                MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
-                return true;
-            }
-        }
-        return false;
+        return wordBlocker.checkAndHandle(player, message);
     }
 
     /**

@@ -45,6 +45,7 @@ public class ChatManager {
     private IgnoreCommand ignoreCommand;
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
+    private final WordBlocker wordBlocker;
 
     public ChatManager(Nonchat plugin, PluginConfig config, PluginMessages messages) {
         this.plugin = plugin;
@@ -52,6 +53,7 @@ public class ChatManager {
         this.messages = messages;
         this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
+        this.wordBlocker = new WordBlocker(config, messages);
         this.channelManager = new ChannelManager(plugin, config);
         this.ignoreCommand = plugin.getIgnoreCommand();
         startBubbleUpdater();
@@ -480,21 +482,7 @@ public class ChatManager {
     }
 
     private boolean handleBlockedWords(Player player, String message) {
-        if (!player.hasPermission("nonchat.antiblockedwords")) {
-            // Check if word blocking is enabled
-            if (!config.isWordBlockingEnabled()) {
-                return false;
-            }
-            
-            WordBlocker wordBlocker = config.getWordBlocker();
-            // Check blocked words on the message without color codes
-            String messageToCheck = ColorUtil.stripFormatting(message);
-            if (!wordBlocker.isMessageAllowed(messageToCheck)) {
-                MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
-                return true;
-            }
-        }
-        return false;
+        return wordBlocker.checkAndHandle(player, message);
     }
 
     /**

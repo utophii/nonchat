@@ -102,10 +102,11 @@ death-messages-reload-failed: "&#ff0000Failed to reload death messages!"
 death-messages-load-error: "&#ff0000Error loading death messages: {error}"
 death-messages-validation-warning: "&#FFAFFBWarning: {warning}"
 
-# Spam detection notifications
+# Detection notifications
 spam-detected-repetitive: "&#FFAFFB[nonchat] &f{player} detected repetitive spam: &#ff0000{message}"
 spam-detected-similar: "&#FFAFFB[nonchat] &f{player} detected similar spam: &#ff0000{message}"
 spam-detected-flood: "&#FFAFFB[nonchat] &f{player} detected flood spam: &#ff0000{message}"
+banned-words-detected: "&#FFAFFB[nonchat] &f{player} sent banned words: &#ff0000{message}"
 
 # Channel Command
 channel-help-header: "&#FFAFFBChannel Commands:"

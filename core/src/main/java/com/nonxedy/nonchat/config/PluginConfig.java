@@ -27,7 +27,6 @@ import org.jetbrains.annotations.NotNull;
 
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.util.chat.filters.CapsFilter;
-import com.nonxedy.nonchat.util.chat.filters.WordBlocker;
 import com.nonxedy.nonchat.util.chat.formatting.ChatTypeUtil;
 import com.nonxedy.nonchat.util.chat.formatting.HoverTextUtil;
 import com.nonxedy.nonchat.util.core.broadcast.BroadcastMessage;
@@ -941,20 +940,36 @@ public class PluginConfig {
     }
 
     /**
-     * Gets word blocker instance
-     * @return Configured WordBlocker
-     */
-    @NotNull
-    public WordBlocker getWordBlocker() {
-        return new WordBlocker(getBannedWords(), getBannedPatterns());
-    }
-
-    /**
      * Checks if word blocking is enabled
      * @return true if word blocking is enabled
      */
     public boolean isWordBlockingEnabled() {
         return config.getBoolean("banned-words.enabled", true);
+    }
+
+    /**
+     * Gets the warning message sent to a player whose message was blocked by the word filter
+     * @return Warning message with PlaceholderAPI placeholders support; %message% is the blocked message
+     */
+    public String getBannedWordsMessage() {
+        return config.getString("banned-words.message", "&#ff0000You are not allowed to use this word!");
+    }
+
+    /**
+     * Checks if banned word detections should be logged to console
+     * @return true if console notifications are enabled
+     */
+    public boolean isBannedWordsConsoleNotifyEnabled() {
+        return config.getBoolean("banned-words.console-notify", true);
+    }
+
+    /**
+     * Gets actions to execute when a banned word is detected
+     * @return List of actions ('block', 'notify-staff' or console commands)
+     */
+    @NotNull
+    public List<String> getBannedWordsActions() {
+        return config.getStringList("banned-words.actions");
     }
 
     /**
@@ -1269,11 +1284,11 @@ public class PluginConfig {
 
     /**
      * Gets the staff notification message template for detected advertisements
-     * @return Message template with {player} and {message} placeholders
+     * @return Message template resolved through PlaceholderAPI; %message% is the flagged message
      */
     public String getAntiAdNotifyMessage() {
         return config.getString("anti-ad.notify-message",
-                "&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}");
+                "§#FFAFFB[nonchat] §f%player_name% posted advertisement: §#ff0000%message%");
     }
 
     /**

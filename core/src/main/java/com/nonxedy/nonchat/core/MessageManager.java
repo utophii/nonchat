@@ -32,6 +32,7 @@ public class MessageManager {
     private volatile IgnoreCommand ignoreCommand;
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
+    private final WordBlocker wordBlocker;
 
     public MessageManager(Nonchat plugin, PluginConfig config, PluginMessages messages, SpyCommand spyCommand) {
         this.plugin = plugin;
@@ -40,6 +41,7 @@ public class MessageManager {
         this.spyCommand = spyCommand;
         this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
+        this.wordBlocker = new WordBlocker(config, messages);
     }
 
     public Map<UUID, UUID> getLastMessageSender() {
@@ -197,19 +199,7 @@ public class MessageManager {
     }
 
     private boolean handleBlockedWords(Player player, String message) {
-        if (!player.hasPermission("nonchat.antiblockedwords")) {
-            if (!config.isWordBlockingEnabled()) {
-                return false;
-            }
-
-            WordBlocker wordBlocker = config.getWordBlocker();
-            String messageToCheck = ColorUtil.stripFormatting(message);
-            if (!wordBlocker.isMessageAllowed(messageToCheck)) {
-                MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
-                return true;
-            }
-        }
-        return false;
+        return wordBlocker.checkAndHandle(player, message);
     }
 
     /**
