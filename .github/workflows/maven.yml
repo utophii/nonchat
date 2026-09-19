@@ -10,10 +10,10 @@ on:
       - 'api/**'
       - 'core/**'
       - 'plugin/**'
-      - 'v1_20_R4/**'
       - 'v1_21_R1/**'
       - 'v26_1_R1/**'
       - 'v26_2_R1/**'
+      - 'v26_3_R1/**'
   pull_request:
     branches: [ "main", "dev" ]
     paths:
@@ -23,10 +23,10 @@ on:
       - 'api/**'
       - 'core/**'
       - 'plugin/**'
-      - 'v1_20_R4/**'
       - 'v1_21_R1/**'
       - 'v26_1_R1/**'
       - 'v26_2_R1/**'
+      - 'v26_3_R1/**'
 
 concurrency:
   group: maven-${{ github.workflow }}-${{ github.ref }}

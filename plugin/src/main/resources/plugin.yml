@@ -44,6 +44,7 @@ permissions:
       - nonchat.color
       - nonchat.ad.bypass
       - nonchat.ad.notify
+      - nonchat.wordblocker.notify
   nonchat.message:
     description: Allows /message command
     default: true
@@ -112,6 +113,9 @@ permissions:
     default: op
   nonchat.spam.notify:
     description: Notify players about spam detection
+    default: op
+  nonchat.wordblocker.notify:
+    description: Notify players about banned words detection
     default: op
   nonchat.spy.all:
     description: Receive all messages from all channels regardless of settings

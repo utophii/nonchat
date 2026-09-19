@@ -93,7 +93,7 @@ public class AdDetector implements MessageFilter {
         if (staffNotify) {
             String notification = notifyMessage;
 
-            // Resolve PlaceholderAPI placeholders on the template
+            // Resolve PlaceholderAPI placeholders on the template (e.g. %player_name%)
             if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
                 try {
                     notification = PlaceholderAPI.setPlaceholders(player, notification);

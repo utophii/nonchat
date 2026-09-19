@@ -20,6 +20,8 @@
       <artifactId>nonchat-core</artifactId>
     </dependency>
 
+    <!-- Adventure, MiniMessage & serializers are bundled with Paper 1.21.6+ — no need to declare or shade them -->
+
     <!-- All version adapters, ServiceLoader will find any version -->
     <dependency>
       <groupId>com.nonxedy.nonchat</groupId>
