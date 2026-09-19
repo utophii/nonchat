@@ -45,13 +45,15 @@ public class ChatManager {
     private IgnoreCommand ignoreCommand;
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
+    private final WordBlocker wordBlocker;
 
     public ChatManager(Nonchat plugin, PluginConfig config, PluginMessages messages) {
         this.plugin = plugin;
         this.config = config;
         this.messages = messages;
-        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand());
+        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
+        this.wordBlocker = new WordBlocker(config, messages);
         this.channelManager = new ChannelManager(plugin, config);
         this.ignoreCommand = plugin.getIgnoreCommand();
         startBubbleUpdater();
@@ -107,7 +109,7 @@ public class ChatManager {
             }
 
             // Handle mentions
-            handleMentions(player, context.processedMessage);
+            handleMentions(player, context.processedMessage, context.channel);
 
             // Format and broadcast
             broadcastProcessedMessage(context);
@@ -187,7 +189,7 @@ public class ChatManager {
 
         // Handle color permissions
         if (!player.hasPermission("nonchat.color") && ColorUtil.hasColorCodes(message)) {
-            message = ColorUtil.stripAllColors(message);
+            message = ColorUtil.stripFormatting(message);
             if (message.trim().isEmpty()) {
                 return false; // Silently cancel empty messages after stripping colors
             }
@@ -238,7 +240,7 @@ public class ChatManager {
 
         // Check message length
         String messageForLengthCheck = player.hasPermission("nonchat.color") ? finalMessage
-                : ColorUtil.stripAllColors(finalMessage);
+                : ColorUtil.stripFormatting(finalMessage);
         if (messageForLengthCheck.length() < channel.getMinLength()) {
             MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("message-too-short")
                     .replace("{min}", String.valueOf(channel.getMinLength()))));
@@ -329,7 +331,7 @@ public class ChatManager {
      * Schedules bubble creation with robust error handling and fallbacks
      */
     private void scheduleBubbleCreation(Player player, String message) {
-        String bubbleMessage = player.hasPermission("nonchat.color") ? message : ColorUtil.stripAllColors(message);
+        String bubbleMessage = player.hasPermission("nonchat.color") ? message : ColorUtil.stripFormatting(message);
 
         try {
             Bukkit.getScheduler().runTask(plugin, () -> {
@@ -377,44 +379,11 @@ public class ChatManager {
     }
 
     private void startBubbleUpdater() {
-        Runnable bubbleUpdateTask = this::updateBubbles;
-
-        // Try different scheduling strategies in order of preference
-        if (tryScheduleTask(bubbleUpdateTask, 1L, 1L, "primary")) {
-            return;
-        }
-
-        if (tryScheduleTask(bubbleUpdateTask, 1L, 1L, "fallback")) {
-            plugin.logResponse("Bubble updater started with fallback scheduler");
-            return;
-        }
-
-        // Last resort: run once immediately
-        plugin.logResponse("Starting bubble updater with immediate execution as last resort");
         try {
-            Bukkit.getScheduler().runTask(plugin, bubbleUpdateTask);
-            plugin.logResponse("Bubble updater started with immediate execution");
-        } catch (IllegalArgumentException immediateError) {
-            plugin.logError("Failed to start bubble updater with immediate execution: " + immediateError.getMessage());
-        }
-    }
-
-    /**
-     * Attempts to schedule a task with the given scheduler type
-     */
-    private boolean tryScheduleTask(Runnable task, long delay, long period, String schedulerType) {
-        try {
-            switch (schedulerType) {
-                case "primary" -> Bukkit.getScheduler().runTaskTimer(plugin, task, delay, period);
-                case "fallback" -> Bukkit.getScheduler().runTaskTimer(plugin, task, delay, period);
-                default -> {
-                    return false;
-                }
-            }
-            return true;
+            Bukkit.getScheduler().runTaskTimer(plugin, this::updateBubbles, 1L, 1L);
+            plugin.logResponse("Bubble updater scheduled");
         } catch (IllegalArgumentException e) {
-            plugin.logError("Failed to start bubble updater with " + schedulerType + " scheduler: " + e.getMessage());
-            return false;
+            plugin.logError("Failed to schedule bubble updater: " + e.getMessage());
         }
     }
 
@@ -513,21 +482,7 @@ public class ChatManager {
     }
 
     private boolean handleBlockedWords(Player player, String message) {
-        if (!player.hasPermission("nonchat.antiblockedwords")) {
-            // Check if word blocking is enabled
-            if (!config.isWordBlockingEnabled()) {
-                return false;
-            }
-            
-            WordBlocker wordBlocker = config.getWordBlocker();
-            // Check blocked words on the message without color codes
-            String messageToCheck = ColorUtil.stripAllColors(message);
-            if (!wordBlocker.isMessageAllowed(messageToCheck)) {
-                MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
-                return true;
-            }
-        }
-        return false;
+        return wordBlocker.checkAndHandle(player, message);
     }
 
     /**
@@ -543,9 +498,8 @@ public class ChatManager {
         return pattern.matcher(message);
     }
 
-    private void handleMentions(Player sender, String message) {
-        // Find all mentions in the message (strip colors first to avoid false matches)
-        String messageToCheck = ColorUtil.stripAllColors(message);
+    private void handleMentions(Player sender, String message, Channel channel) {
+        String messageToCheck = ColorUtil.stripFormatting(message);
         Matcher mentionMatcher = getMentionMatcher(messageToCheck);
 
         // Collect all the names found into a list and process with Stream API
@@ -558,7 +512,9 @@ public class ChatManager {
         mentionedNames.stream()
                 .map(Bukkit::getPlayerExact)
                 .filter(java.util.Objects::nonNull)
-                .forEach(player -> notifyMentionedPlayer(player, sender));
+                .filter(mentioned -> channel.isGlobal() || channel.isInRange(sender, mentioned))
+                .filter(mentioned -> channel.canReceive(mentioned))
+                .forEach(mentioned -> notifyMentionedPlayer(mentioned, sender));
     }
 
     private void notifyMentionedPlayer(Player mentioned, Player sender) {

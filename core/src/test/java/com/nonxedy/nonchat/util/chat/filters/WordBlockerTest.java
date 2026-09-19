@@ -1,10 +1,10 @@
 package com.nonxedy.nonchat.util.chat.filters;
 
-import static junit.framework.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 class WordBlockerTest {
 

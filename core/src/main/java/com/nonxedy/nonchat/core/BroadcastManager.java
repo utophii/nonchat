@@ -2,8 +2,10 @@ package com.nonxedy.nonchat.core;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
@@ -11,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import com.nonxedy.nonchat.Nonchat;
+import com.nonxedy.nonchat.api.event.NonchatBroadcastEvent;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
 import com.nonxedy.nonchat.util.core.broadcast.BroadcastMessage;
@@ -65,9 +68,26 @@ public class BroadcastManager {
     }
 
     public void broadcast(BroadcastMessage broadcastMessage) {
+        if (!Bukkit.isPrimaryThread()) {
+            Bukkit.getScheduler().runTask(plugin, () -> broadcast(broadcastMessage));
+            return;
+        }
+        
         String message = broadcastMessage.getMessage();
+        Set<Player> recipients = new LinkedHashSet<>(Bukkit.getOnlinePlayers());
+        NonchatBroadcastEvent event = new NonchatBroadcastEvent(
+                Bukkit.getConsoleSender(), message, recipients, true);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return;
+        }
+
+        message = event.getMessage();
         try {
-            for (Player player : Bukkit.getOnlinePlayers()) {
+            for (Player player : event.getRecipients()) {
+                if (player == null || !player.isOnline()) {
+                    continue;
+                }
                 // Process PAPI placeholders for each player individually
                 String parsedMessage = IntegrationUtil.processPlaceholders(player, message);
 
@@ -79,22 +99,23 @@ public class BroadcastManager {
                     // Use LinkDetector to make links clickable for legacy messages
                     formatted = LinkDetector.makeLinksClickable(parsedMessage);
                 }
-                // Try to use Adventure API first
                 MessageUtil.send(player, formatted);
             }
 
             // Console log using the raw message (no player context for PAPI)
             if (broadcastMessage.isDisplayInConsole()) {
-                String consoleMessage = ColorUtil.stripAllColors(message);
+                String consoleMessage = ColorUtil.stripFormatting(message);
                 plugin.getLogger().info(consoleMessage);
             }
-
         } catch (NoSuchMethodError e) {
             // Fall back to traditional Bukkit sendMessage if Adventure API is not available
             plugin.logError("Adventure API isn't available: " + e.getMessage());
-            for (Player player : Bukkit.getOnlinePlayers()) {
+            for (Player player : event.getRecipients()) {
+                if (player == null || !player.isOnline()) {
+                    continue;
+                }
                 String parsedMessage = IntegrationUtil.processPlaceholders(player, message);
-                MessageUtil.send(player, ColorUtil.parseColor(parsedMessage));
+                MessageUtil.send(player, ColorUtil.parseComponent(parsedMessage));
             }
         }
     }

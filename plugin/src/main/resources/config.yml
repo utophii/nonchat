@@ -399,6 +399,9 @@ hover-text:
     - "&#FFAFFB► Ping: &#FFFFFF%player_ping%ms" # Ping in PlaceholderAPI
     - "§7"
     - "§8Click to send a private message"
+  # Command suggested when a player clicks a name in chat.
+  # Set to "" to disable the click-to-message action.
+  click-command: "/m %player_name% "
 
 # ==================================================
 # BLOCKED WORDS FILTER
@@ -425,6 +428,24 @@ banned-words:
     - '.*\btest\b.*'
     - '.*\d{4,}.*'
 
+  # Warning message sent to the player when their message is blocked.
+  # Supports color codes and PlaceholderAPI placeholders.
+  # Use %message% as placeholder for the blocked message. Set to "" to send no warning.
+  message: "&#ff0000You are not allowed to use this word!"
+
+  # Enable/disable console notifications when a banned word is detected.
+  # If true, detections will also be logged to the console.
+  # If false, only staff members with 'nonchat.wordblocker.notify' permission will see notifications.
+  console-notify: true
+
+  # Actions to execute when a banned word is detected.
+  # Special actions: 'block' (blocks the message), 'notify-staff' (notifies staff)
+  # Regular commands: Any command that will be executed from console (use %player_name% placeholder)
+  # Example: ["block", "notify-staff", "mute %player_name% 300"]
+  actions:
+    - block
+    - notify-staff
+
 # ==================================================
 # CAPS FILTER
 # Limits the use of excessive capital letters in messages.
@@ -439,7 +460,7 @@ caps-filter:
 
 # ==================================================
 # ANTI-ADVERTISEMENT SYSTEM  
-# Blocks server advertisements in chat, commands, and signs.
+# Blocks server advertisements in chat.
 # ==================================================
 anti-ad:
   # Enable/disable the anti-advertisement filter.
@@ -451,6 +472,9 @@ anti-ad:
     - "discord.gg/NAWsxe3J3R"
   # Notify staff when an advertisement is detected (requires 'nonchat.ad.notify' permission).
   staff-notify: true
+  # Message sent to staff and console when an advertisement is detected.
+  # {message} - the flagged message
+  notify-message: '&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}'
   # Command to execute when an advertisement is detected. Leave empty for no punishment.
   punish-command: "ban %player_name% advertising"
 

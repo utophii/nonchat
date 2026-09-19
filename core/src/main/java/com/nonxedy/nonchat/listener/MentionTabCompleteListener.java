@@ -1,16 +1,12 @@
 package com.nonxedy.nonchat.listener;
 
-import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerChatTabCompleteEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.server.TabCompleteEvent;
@@ -41,20 +37,8 @@ public class MentionTabCompleteListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         String mention = "@" + event.getPlayer().getName();
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
-            removeCustomChatCompletions(onlinePlayer, List.of(mention));
+            onlinePlayer.removeCustomChatCompletions(List.of(mention));
         }
-    }
-
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onPlayerChatTabComplete(PlayerChatTabCompleteEvent event) {
-        String lastToken = event.getLastToken();
-        List<String> suggestions = MentionCompletionUtil.getMentionSuggestions(event.getPlayer(), lastToken);
-        if (suggestions.isEmpty()) {
-            return;
-        }
-
-        event.getTabCompletions().clear();
-        event.getTabCompletions().addAll(suggestions);
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -87,27 +71,11 @@ public class MentionTabCompleteListener implements Listener {
     }
 
     private void refreshPlayerCompletions(Player player) {
-        Collection<String> mentions = Bukkit.getOnlinePlayers().stream()
+        List<String> mentions = Bukkit.getOnlinePlayers().stream()
                 .filter(player::canSee)
                 .map(onlinePlayer -> "@" + onlinePlayer.getName())
-                .collect(Collectors.toList());
+                .toList();
 
-        setCustomChatCompletions(player, mentions);
-    }
-
-    private void removeCustomChatCompletions(Player player, List<String> mentions) {
-        invokePlayerMethod(player, "removeCustomChatCompletions", List.class, mentions);
-    }
-
-    private void setCustomChatCompletions(Player player, Collection<String> mentions) {
-        invokePlayerMethod(player, "setCustomChatCompletions", Collection.class, mentions);
-    }
-
-    private void invokePlayerMethod(Player player, String methodName, Class<?> parameterType, Object argument) {
-        try {
-            Method method = player.getClass().getMethod(methodName, parameterType);
-            method.invoke(player, argument);
-        } catch (ReflectiveOperationException ignored) {
-        }
+        player.setCustomChatCompletions(mentions);
     }
 }

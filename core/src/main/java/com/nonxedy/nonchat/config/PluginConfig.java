@@ -27,7 +27,6 @@ import org.jetbrains.annotations.NotNull;
 
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.util.chat.filters.CapsFilter;
-import com.nonxedy.nonchat.util.chat.filters.WordBlocker;
 import com.nonxedy.nonchat.util.chat.formatting.ChatTypeUtil;
 import com.nonxedy.nonchat.util.chat.formatting.HoverTextUtil;
 import com.nonxedy.nonchat.util.core.broadcast.BroadcastMessage;
@@ -188,7 +187,12 @@ public class PluginConfig {
             "§8Click to send a private message"
         );
         config.set("hover-text.format", defaultHoverFormat);
-        
+        // Command suggested when clicking a player's name in chat.
+        // Use {player} as a placeholder for the clicked player's name.
+        // A trailing space is included by default so the message you type
+        // does not run into the name (e.g. "/m utophii hello").
+        config.set("hover-text.click-command", "/m {player} ");
+
         // Banned words
         config.set("banned-words", Arrays.asList("spam", "badword", "anotherbadword", "плохой"));
 
@@ -936,20 +940,36 @@ public class PluginConfig {
     }
 
     /**
-     * Gets word blocker instance
-     * @return Configured WordBlocker
-     */
-    @NotNull
-    public WordBlocker getWordBlocker() {
-        return new WordBlocker(getBannedWords(), getBannedPatterns());
-    }
-
-    /**
      * Checks if word blocking is enabled
      * @return true if word blocking is enabled
      */
     public boolean isWordBlockingEnabled() {
         return config.getBoolean("banned-words.enabled", true);
+    }
+
+    /**
+     * Gets the warning message sent to a player whose message was blocked by the word filter
+     * @return Warning message with PlaceholderAPI placeholders support; %message% is the blocked message
+     */
+    public String getBannedWordsMessage() {
+        return config.getString("banned-words.message", "&#ff0000You are not allowed to use this word!");
+    }
+
+    /**
+     * Checks if banned word detections should be logged to console
+     * @return true if console notifications are enabled
+     */
+    public boolean isBannedWordsConsoleNotifyEnabled() {
+        return config.getBoolean("banned-words.console-notify", true);
+    }
+
+    /**
+     * Gets actions to execute when a banned word is detected
+     * @return List of actions ('block', 'notify-staff' or console commands)
+     */
+    @NotNull
+    public List<String> getBannedWordsActions() {
+        return config.getStringList("banned-words.actions");
     }
 
     /**
@@ -1214,11 +1234,20 @@ public class PluginConfig {
     }
 
     /**
+     * Gets the command suggested when a player clicks a name in chat.
+     * @return Click command template
+     */
+    @NotNull
+    public String getHoverTextClickCommand() {
+        return config.getString("hover-text.click-command", "/m %player_name% ");
+    }
+
+    /**
      * Gets hover text utility instance
      * @return Configured HoverTextUtil
      */
     public HoverTextUtil getHoverTextUtil() {
-        return new HoverTextUtil(getHoverFormat(), isHoverEnabled());
+        return new HoverTextUtil(getHoverFormat(), isHoverEnabled(), getHoverTextClickCommand());
     }
 
     /**
@@ -1251,6 +1280,15 @@ public class PluginConfig {
      */
     public boolean shouldNotifyStaffAboutAds() {
         return config.getBoolean("anti-ad.staff-notify", true);
+    }
+
+    /**
+     * Gets the staff notification message template for detected advertisements
+     * @return Message template resolved through PlaceholderAPI; %message% is the flagged message
+     */
+    public String getAntiAdNotifyMessage() {
+        return config.getString("anti-ad.notify-message",
+                "§#FFAFFB[nonchat] §f%player_name% posted advertisement: §#ff0000%message%");
     }
 
     /**
@@ -1532,7 +1570,7 @@ public class PluginConfig {
         }
 
         String currentVersion = savesConfig.getString("version");
-        String pluginVersion = plugin.getDescription().getVersion();
+        String pluginVersion = plugin.getPluginMeta().getVersion();
         boolean isUpdated = pluginVersion.equals(currentVersion);
 
 

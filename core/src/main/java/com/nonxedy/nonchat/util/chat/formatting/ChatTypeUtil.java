@@ -44,22 +44,6 @@ public class ChatTypeUtil {
         this.switchMessage = switchMessage != null ? switchMessage : "";
     }
     
-    /**
-     * @deprecated Use getSendPermission() instead
-     */
-    @Deprecated
-    public String getPermission() {
-        return sendPermission;
-    }
-    
-    /**
-     * @deprecated Use hasSendPermission() instead
-     */
-    @Deprecated
-    public boolean hasPermission() {
-        return hasSendPermission();
-    }
-    
     public boolean hasSendPermission() {
         return sendPermission != null && !sendPermission.isEmpty();
     }

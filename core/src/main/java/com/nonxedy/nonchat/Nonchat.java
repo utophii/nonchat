@@ -33,6 +33,7 @@ import com.nonxedy.nonchat.service.ConfigService;
 import com.nonxedy.nonchat.service.DeathMessageService;
 import com.nonxedy.nonchat.util.InteractivePlaceholderManager;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
+import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.debugging.Debugger;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 import com.nonxedy.nonchat.util.core.updates.UpdateChecker;
@@ -98,7 +99,7 @@ public class Nonchat extends JavaPlugin {
             setupIntegrations();
             metrics.ready();
             
-            MessageUtil.send(Bukkit.getConsoleSender(), "§d[nonchat] §aplugin enabled");
+            MessageUtil.send(Bukkit.getConsoleSender(), ColorUtil.parseComponentCached("§d[nonchat] §aplugin enabled"));
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to enable plugin: {0}", e.getMessage());
              throw new RuntimeException("Failed to enable plugin", e);
@@ -219,7 +220,7 @@ public class Nonchat extends JavaPlugin {
             // Register death-related listeners
             if (deathMessageService != null && deathConfig != null) {
                 Bukkit.getPluginManager().registerEvents(new DeathListener(configService.getConfig(), deathMessageService), this);
-                Bukkit.getPluginManager().registerEvents(new DeathCoordinates(deathConfig, configService.getMessages()), this);
+                Bukkit.getPluginManager().registerEvents(new DeathCoordinates(deathConfig, configService.getMessages(), getLogger()), this);
                 
                 // Register damage tracking listener for indirect death tracking (conditional based on master toggle)
                 if (indirectDeathTracker != null && deathConfig.isIndirectTrackingEnabled()) {
@@ -289,8 +290,6 @@ public class Nonchat extends JavaPlugin {
         }
 
         try {
-            // Initialize DiscordSRV
-            new DiscordSRVHook(this);
             ChannelAPI.initialize(new ChannelAPI.ChannelAccess() {
                 @Override
                 public Collection<Channel> getAllChannels() {
@@ -307,6 +306,14 @@ public class Nonchat extends JavaPlugin {
                     return chatManager.getPlayerChannel(player);
                 }
             });
+            getLogger().info("ChannelAPI initialized");
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Failed to initialize ChannelAPI: {0}", e.getMessage());
+        }
+
+        try {
+            // Initialize DiscordSRV
+            new DiscordSRVHook(this);
 
             if (Bukkit.getPluginManager().getPlugin("DiscordSRV") != null) {
                 this.discordSRVIntegration = new DiscordSRVIntegration(this);
@@ -371,7 +378,7 @@ public class Nonchat extends JavaPlugin {
             // Cancel all remaining Bukkit tasks for this plugin
             Bukkit.getScheduler().cancelTasks(this);
 
-            MessageUtil.send(Bukkit.getConsoleSender(), "§d[nonchat] §cplugin disabled");
+            MessageUtil.send(Bukkit.getConsoleSender(), ColorUtil.parseComponentCached("§d[nonchat] §cplugin disabled"));
             
             metrics.shutdown();
 

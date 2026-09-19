@@ -1,19 +1,19 @@
 name: nonchat
 author: utophii
 main: com.nonxedy.nonchat.Nonchat
-description: The best chat plugin for 1.16.5-26.2
+description: The best chat plugin for 1.21.6-26.3
 version: ${project.version}
 prefix: nonchat
-api-version: 1.16
-load: STARTUP
+api-version: 1.21
+load: POSTWORLD
 
 depend:
-  - LuckPerms
   - PlaceholderAPI
 
 softdepend:
   - DiscordSRV
   - Vault
+  - LuckPerms
 
 permissions:
   nonchat.*:
@@ -44,6 +44,7 @@ permissions:
       - nonchat.color
       - nonchat.ad.bypass
       - nonchat.ad.notify
+      - nonchat.wordblocker.notify
   nonchat.message:
     description: Allows /message command
     default: true
@@ -112,6 +113,9 @@ permissions:
     default: op
   nonchat.spam.notify:
     description: Notify players about spam detection
+    default: op
+  nonchat.wordblocker.notify:
+    description: Notify players about banned words detection
     default: op
   nonchat.spy.all:
     description: Receive all messages from all channels regardless of settings

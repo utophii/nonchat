@@ -46,7 +46,7 @@ public class NonchatExpansion extends PlaceholderExpansion {
      */
     @Override
     public @NotNull String getVersion() {
-        return plugin.getDescription().getVersion();
+        return plugin.getPluginMeta().getVersion();
     }
 
     /**

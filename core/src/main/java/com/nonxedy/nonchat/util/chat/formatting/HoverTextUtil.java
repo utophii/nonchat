@@ -21,11 +21,13 @@ import net.kyori.adventure.text.event.HoverEvent;
 public class HoverTextUtil {
     private final List<String> hoverFormat;
     private final boolean enabled;
+    private final String clickCommand;
     private final boolean usePlaceholderAPI;
 
-    public HoverTextUtil(List<String> format, boolean enabled) {
+    public HoverTextUtil(List<String> format, boolean enabled, String clickCommand) {
         this.hoverFormat = format;
         this.enabled = enabled;
+        this.clickCommand = clickCommand;
         this.usePlaceholderAPI = Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
     }
 
@@ -47,9 +49,14 @@ public class HoverTextUtil {
 
         // Parse colors in hover text using ColorUtil
         Component hoverComponent = ColorUtil.parseComponent(hoverText);
-        return component
-            .hoverEvent(HoverEvent.showText(hoverComponent))
-            .clickEvent(ClickEvent.suggestCommand("/m " + player.getName()));
+        Component result = component
+            .hoverEvent(HoverEvent.showText(hoverComponent));
+
+        String click = buildClickCommand(player);
+        if (!click.isEmpty()) {
+            result = result.clickEvent(ClickEvent.suggestCommand(click));
+        }
+        return result;
     }
 
     /**
@@ -72,9 +79,38 @@ public class HoverTextUtil {
 
         // Parse colors in hover text using ColorUtil
         Component hoverComponent = ColorUtil.parseComponent(hoverText);
-        return baseComponent
-            .hoverEvent(HoverEvent.showText(hoverComponent))
-            .clickEvent(ClickEvent.suggestCommand("/m " + player.getName()));
+        Component result = baseComponent
+            .hoverEvent(HoverEvent.showText(hoverComponent));
+
+        String click = buildClickCommand(player);
+        if (!click.isEmpty()) {
+            result = result.clickEvent(ClickEvent.suggestCommand(click));
+        }
+        return result;
+    }
+
+    /**
+     * Builds the click command suggested when a player clicks a name in chat.
+     * Resolves PlaceholderAPI placeholders (e.g. %player_name%) when
+     * PlaceholderAPI is installed, then returns the command. An empty template
+     * disables the click action entirely.
+     * @param player The player whose name was clicked
+     * @return The click command, or an empty string to disable clicking
+     */
+    private String buildClickCommand(Player player) {
+        if (clickCommand == null || clickCommand.isEmpty()) {
+            return "";
+        }
+
+        String command = clickCommand;
+        if (usePlaceholderAPI) {
+            try {
+                command = PlaceholderAPI.setPlaceholders(player, command);
+            } catch (Exception e) {
+                Bukkit.getLogger().log(Level.WARNING, "Error processing placeholder in click command: {0}", e.getMessage());
+            }
+        }
+        return command;
     }
 
     /**

@@ -1,6 +1,6 @@
 package com.nonxedy.nonchat.adapter.v26_1_R1;
 
-import com.nonxedy.nonchat.adapter.v1_19_R3.AbstractBubblePlatformAdapter;
+import com.nonxedy.nonchat.adapter.AbstractBubblePlatformAdapter;
 import com.nonxedy.nonchat.api.IMessageHandler;
 import org.bukkit.event.Listener;
 

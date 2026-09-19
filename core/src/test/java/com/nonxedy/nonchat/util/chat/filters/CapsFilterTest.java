@@ -1,9 +1,9 @@
 package com.nonxedy.nonchat.util.chat.filters;
 
 
-import static junit.framework.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 class CapsFilterTest {
 
@@ -11,7 +11,7 @@ class CapsFilterTest {
     void filtersMessageWhenCapsPercentageExceedsLimit() {
         CapsFilter filter = new CapsFilter(true, 50, 4);
 
-        assertTrue(filter.shouldFilter("THIS is loud"));
+        assertTrue(filter.shouldFilter("THIS IS LOUD"));
     }
 
     @Test

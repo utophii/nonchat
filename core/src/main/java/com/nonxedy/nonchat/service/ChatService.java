@@ -41,7 +41,7 @@ public class ChatService implements IMessageHandler {
         // Check if player is trying to use colors without permission in staff chat
         if (!sender.hasPermission("nonchat.color") && ColorUtil.hasColorCodes(message)) {
             // Strip colors from staff chat message if no permission
-            String strippedMessage = ColorUtil.stripAllColors(message);
+            String strippedMessage = ColorUtil.stripFormatting(message);
             chatManager.processChat(sender, "@" + strippedMessage);
         } else {
             // Instead of using the old staff chat format, we'll use the chat manager with the staff chat prefix

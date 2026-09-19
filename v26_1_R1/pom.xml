@@ -21,7 +21,7 @@
     </dependency>
     <dependency>
       <groupId>com.nonxedy.nonchat</groupId>
-      <artifactId>nonchat-v1_19_R3</artifactId>
+      <artifactId>nonchat-core</artifactId>
       <version>${project.version}</version>
     </dependency>
 

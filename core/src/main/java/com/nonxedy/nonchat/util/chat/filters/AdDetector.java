@@ -10,9 +10,11 @@ import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.api.MessageFilter;
 import com.nonxedy.nonchat.config.PluginConfig;
+import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.kyori.adventure.text.Component;
 
 public class AdDetector implements MessageFilter {
     private static final Pattern pattern = Pattern.compile("([\\w+]+://)?([\\w-]+\\.)*[\\w-]+[.:]\\w+([/?=&#.]?[\\w-]+)*/?", Pattern.CASE_INSENSITIVE);
@@ -20,11 +22,16 @@ public class AdDetector implements MessageFilter {
     private final List<String> whitelistedUrls;
     private final float sensitivity;
     private final String punishCommand;
+    private final boolean staffNotify;
+    private final String notifyMessage;
 
-    public AdDetector(PluginConfig config, float sensitivity, String punishCommand) {
+    public AdDetector(PluginConfig config, float sensitivity, String punishCommand,
+                      boolean staffNotify, String notifyMessage) {
         this.whitelistedUrls = config.getAntiAdWhitelistedUrls();
         this.sensitivity = Math.max(0f, Math.min(1f, sensitivity));
         this.punishCommand = punishCommand;
+        this.staffNotify = staffNotify;
+        this.notifyMessage = notifyMessage;
     }
 
     @Override
@@ -83,15 +90,29 @@ public class AdDetector implements MessageFilter {
     }
 
     private void notifyStaff(Player player, String message) {
-        String notification = String.format("§#FFAFFB[nonchat] §f%s posted advertisement: §#ff0000%s", 
-                player.getName(), message);
-        
-        Bukkit.getOnlinePlayers().stream()
-            .filter(p -> p.hasPermission("nonchat.ad.notify") || p.isOp())
-            .forEach(p -> MessageUtil.send(p, notification));
-            
-        // Log to console
-        MessageUtil.send(Bukkit.getConsoleSender(), notification);
+        if (staffNotify) {
+            String notification = notifyMessage;
+
+            // Resolve PlaceholderAPI placeholders on the template (e.g. %player_name%)
+            if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+                try {
+                    notification = PlaceholderAPI.setPlaceholders(player, notification);
+                } catch (Exception e) {
+                    Bukkit.getLogger().log(Level.WARNING, "&#FFAFFB[nonchat] &cError processing notify-message placeholders: {0}", e.getMessage());
+                }
+            }
+
+            // Insert the flagged message last, so user input never passes through placeholder parsing
+            notification = notification.replace("{message}", message);
+
+            Component notificationComponent = ColorUtil.parseComponentCached(notification);
+            Bukkit.getOnlinePlayers().stream()
+                .filter(p -> p.hasPermission("nonchat.ad.notify") || p.isOp())
+                .forEach(p -> MessageUtil.send(p, notificationComponent));
+
+            // Log to console
+            MessageUtil.send(Bukkit.getConsoleSender(), notificationComponent);
+        }
         
         // Execute configured punishment command with resolved placeholders
         if (punishCommand != null && !punishCommand.isEmpty()) {
