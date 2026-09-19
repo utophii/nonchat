@@ -26,7 +26,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <java.version>21</java.version>
-    <revision>1.6.4</revision>
+    <revision>1.6.5</revision>
     <!-- Shared library versions -->
     <adventure.version>5.0.1</adventure.version>
     <luckperms.version>5.5</luckperms.version>
