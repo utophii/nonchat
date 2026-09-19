@@ -1,6 +1,7 @@
 package com.nonxedy.nonchat.chat.channel;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +26,7 @@ import com.nonxedy.nonchat.util.special.ping.PingDetector;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.ComponentBuilder;
+import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
@@ -415,47 +417,111 @@ public class BaseChannel implements Channel {
     }
 
     private Component processMessageContent(Player player, String message, String inheritedColor) {
+        Component processedMessage;
+
         // If message has color codes (like mention colors), use legacy processing to preserve colors
         if (ColorUtil.hasColorCodes(message)) {
-            return processLegacyMessageContent(player, message, inheritedColor);
-        }
+            processedMessage = processLegacyMessageContent(player, message, inheritedColor);
+        } else {
+            // Check if interactive placeholders are globally disabled
+            Plugin plugin = Bukkit.getPluginManager().getPlugin("nonchat");
+            if (plugin instanceof Nonchat nonchatPlugin) {
+                boolean globalEnabled = nonchatPlugin.getConfig().getBoolean("interactive-placeholders.enabled", true);
 
-        // Check if interactive placeholders are globally disabled
-        Plugin plugin = Bukkit.getPluginManager().getPlugin("nonchat");
-        if (plugin instanceof Nonchat nonchatPlugin) {
-            boolean globalEnabled = nonchatPlugin.getConfig().getBoolean("interactive-placeholders.enabled", true);
-
-            if (!globalEnabled) {
-                return processMessageWithColorPermission(player, message, inheritedColor);
-            }
-
-            // Use the new InteractivePlaceholderManager
-            if (nonchatPlugin.getPlaceholderManager() != null) {
-                // Always apply inherited color from the format
-                String processedMessage = message;
-                if (!inheritedColor.isEmpty()) {
-                    processedMessage = inheritedColor + message;
-                }
-
-                // Handle color permissions - only strip player's own colors, keep format colors
-                if (!player.hasPermission("nonchat.color")) {
-                    // Strip colors from the player's message content, but preserve the inherited color
-                    if (!inheritedColor.isEmpty() && processedMessage.startsWith(inheritedColor)) {
-                        String playerMessagePart = processedMessage.substring(inheritedColor.length());
-                        String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
-                        processedMessage = inheritedColor + strippedPlayerPart;
-                    } else {
-                        processedMessage = ColorUtil.stripFormatting(processedMessage);
+                if (!globalEnabled) {
+                    processedMessage = processMessageWithColorPermission(player, message, inheritedColor);
+                } else if (nonchatPlugin.getPlaceholderManager() != null) {
+                    // Always apply inherited color from the format
+                    String messageWithInheritedColor = message;
+                    if (!inheritedColor.isEmpty()) {
+                        messageWithInheritedColor = inheritedColor + message;
                     }
-                }
 
-                // Process interactive placeholders
-                return nonchatPlugin.getPlaceholderManager().processMessage(player, processedMessage);
+                    // Handle color permissions - only strip player's own colors, keep format colors
+                    if (!player.hasPermission("nonchat.color")) {
+                        // Strip colors from the player's message content, but preserve the inherited color
+                        if (!inheritedColor.isEmpty() && messageWithInheritedColor.startsWith(inheritedColor)) {
+                            String playerMessagePart = messageWithInheritedColor.substring(inheritedColor.length());
+                            String strippedPlayerPart = ColorUtil.stripFormatting(playerMessagePart);
+                            messageWithInheritedColor = inheritedColor + strippedPlayerPart;
+                        } else {
+                            messageWithInheritedColor = ColorUtil.stripFormatting(messageWithInheritedColor);
+                        }
+                    }
+
+                    // Process interactive placeholders
+                    processedMessage = nonchatPlugin.getPlaceholderManager().processMessage(player, messageWithInheritedColor);
+                } else {
+                    // Fallback to legacy processing
+                    processedMessage = processLegacyMessageContent(player, message, inheritedColor);
+                }
+            } else {
+                // Fallback to legacy processing
+                processedMessage = processLegacyMessageContent(player, message, inheritedColor);
             }
         }
 
-        // Fallback to legacy processing
-        return processLegacyMessageContent(player, message, inheritedColor);
+        // Mention coloring is generated by the plugin, not supplied by the player.
+        // Apply it after the sender's formatting has been stripped so a sender
+        // without nonchat.color still gets the configured mention color.
+        return applyMentionColoring(player, processedMessage, message);
+    }
+
+    /**
+     * Applies the configured mention color to the already parsed message.
+     *
+     * <p>Mention colors are added by {@link com.nonxedy.nonchat.core.ChatManager}
+     * before the channel is formatted. The normal color-permission path strips
+     * all formatting from messages sent by players without {@code nonchat.color},
+     * which also strips that plugin-generated color. Reapplying the color to the
+     * resulting component keeps player formatting restricted without treating a
+     * mention as player formatting.</p>
+     */
+    private Component applyMentionColoring(Player player, Component messageComponent, String rawMessage) {
+        if (player.hasPermission("nonchat.color")) {
+            // The original mention color is still present in the parsed component.
+            return messageComponent;
+        }
+
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("nonchat");
+        if (!(plugin instanceof Nonchat nonchatPlugin)
+                || !nonchatPlugin.getConfig().getBoolean("mention-colors.enabled", true)) {
+            return messageComponent;
+        }
+
+        String mentionColor = nonchatPlugin.getConfig().getString("mention-colors.color", "&#FFAFFB");
+        if (mentionColor == null || mentionColor.isEmpty()) {
+            return messageComponent;
+        }
+
+        String visibleMessage = ColorUtil.stripFormatting(rawMessage);
+        Pattern mentionPattern = nonchatPlugin.getConfig().getBoolean("mentions.allow-without-at", false)
+                ? Pattern.compile("@?\\b(\\w+)\\b")
+                : Pattern.compile("@(\\w+)");
+        Matcher mentionMatcher = mentionPattern.matcher(visibleMessage);
+
+        // Replacing each distinct token once avoids rebuilding the component for
+        // every occurrence while preserving the exact matcher semantics used by
+        // ChatManager for mention coloring
+        LinkedHashSet<String> mentions = new LinkedHashSet<>();
+        boolean bareNamesAllowed = nonchatPlugin.getConfig().getBoolean("mentions.allow-without-at", false);
+        while (mentionMatcher.find()) {
+            if (bareNamesAllowed && Bukkit.getPlayerExact(mentionMatcher.group(1)) == null) {
+                continue;
+            }
+            mentions.add(mentionMatcher.group(0));
+        }
+
+        for (String mention : mentions) {
+            Component coloredMention = ColorUtil.parseComponent(mentionColor + mention);
+            messageComponent = messageComponent.replaceText(
+                    TextReplacementConfig.builder()
+                            .matchLiteral(mention)
+                            .replacement(coloredMention)
+                            .build());
+        }
+
+        return messageComponent;
     }
 
     /**
