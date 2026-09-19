@@ -33,8 +33,8 @@ import com.nonxedy.nonchat.service.ConfigService;
 import com.nonxedy.nonchat.service.DeathMessageService;
 import com.nonxedy.nonchat.util.InteractivePlaceholderManager;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
-import com.nonxedy.nonchat.util.core.debugging.Debugger;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
+import com.nonxedy.nonchat.util.core.debugging.Debugger;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 import com.nonxedy.nonchat.util.core.updates.UpdateChecker;
 import com.nonxedy.nonchat.util.integration.external.IntegrationUtil;
@@ -290,8 +290,6 @@ public class Nonchat extends JavaPlugin {
         }
 
         try {
-            // Initialize DiscordSRV
-            new DiscordSRVHook(this);
             ChannelAPI.initialize(new ChannelAPI.ChannelAccess() {
                 @Override
                 public Collection<Channel> getAllChannels() {
@@ -308,6 +306,14 @@ public class Nonchat extends JavaPlugin {
                     return chatManager.getPlayerChannel(player);
                 }
             });
+            getLogger().info("ChannelAPI initialized");
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Failed to initialize ChannelAPI: {0}", e.getMessage());
+        }
+
+        try {
+            // Initialize DiscordSRV
+            new DiscordSRVHook(this);
 
             if (Bukkit.getPluginManager().getPlugin("DiscordSRV") != null) {
                 this.discordSRVIntegration = new DiscordSRVIntegration(this);

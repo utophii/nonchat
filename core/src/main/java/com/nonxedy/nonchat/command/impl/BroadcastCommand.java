@@ -2,16 +2,21 @@ package com.nonxedy.nonchat.command.impl;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import com.nonxedy.nonchat.Nonchat;
+import com.nonxedy.nonchat.api.event.NonchatBroadcastEvent;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
@@ -67,7 +72,7 @@ public class BroadcastCommand implements CommandExecutor, TabCompleter {
         }
 
         // Combine args into message and broadcast
-        broadcastMessage(String.join(" ", args));
+        broadcastMessage(sender, String.join(" ", args));
         return true;
     }
 
@@ -91,10 +96,20 @@ public class BroadcastCommand implements CommandExecutor, TabCompleter {
 
     /**
      * Broadcasts formatted message to all players using configurable format
+     * @param sender Command sender
      * @param message Message to broadcast
      */
-    private void broadcastMessage(String message) {
+    private void broadcastMessage(CommandSender sender, String message) {
         try {
+            Set<Player> recipients = new LinkedHashSet<>(plugin.getServer().getOnlinePlayers());
+            NonchatBroadcastEvent event = new NonchatBroadcastEvent(sender, message, recipients, false);
+            Bukkit.getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                return;
+            }
+
+            message = event.getMessage();
+
             // Process links in the message first (before applying format)
             Component messageWithLinks = LinkDetector.makeLinksClickable(message);
 
@@ -117,9 +132,12 @@ public class BroadcastCommand implements CommandExecutor, TabCompleter {
             }
 
             // Send to all online players with spacing
-            plugin.getServer().getOnlinePlayers().forEach(player -> {
+            for (Player player : event.getRecipients()) {
+                if (player == null || !player.isOnline()) {
+                    continue;
+                }
                 MessageUtil.send(player, broadcastComponent);
-            });
+            }
 
             // Send to server console
             MessageUtil.send(plugin.getServer().getConsoleSender(), broadcastComponent);

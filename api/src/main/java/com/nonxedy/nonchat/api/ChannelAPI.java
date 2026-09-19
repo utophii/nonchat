@@ -28,10 +28,10 @@ public class ChannelAPI {
 
     /**
      * Gets all available chat channels
-     * @return Collection of all channels
+     * @return Collection of all channels, or an empty collection if the API is not initialized
      */
     public static Collection<Channel> getAllChannels() {
-        return access.getAllChannels();
+        return access == null ? Collections.emptyList() : access.getAllChannels();
     }
 
     // Maps to store message processors and filters
@@ -41,10 +41,10 @@ public class ChannelAPI {
     /**
      * Gets a channel by its ID
      * @param channelId The channel ID
-     * @return The channel, or null if not found
+     * @return The channel, or null if not found or the API is not initialized
      */
     public static Channel getChannel(String channelId) {
-        return access.getChannel(channelId);
+        return access == null ? null : access.getChannel(channelId);
     }
 
     /**
@@ -59,10 +59,10 @@ public class ChannelAPI {
     /**
      * Gets the current channel of a player
      * @param player The player
-     * @return The player's current channel
+     * @return The player's current channel, or null if the API is not initialized
      */
     public static Channel getPlayerChannel(Player player) {
-        return access.getPlayerChannel(player);
+        return access == null ? null : access.getPlayerChannel(player);
     }
 
     /**
@@ -268,6 +268,7 @@ public class ChannelAPI {
     public static void cleanupAll() {
         channelProcessors.clear();
         channelFilters.clear();
+        access = null;
     }
 
     public interface ChannelAccess {
