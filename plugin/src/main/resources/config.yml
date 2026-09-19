@@ -460,7 +460,7 @@ caps-filter:
 
 # ==================================================
 # ANTI-ADVERTISEMENT SYSTEM  
-# Blocks server advertisements in chat, commands, and signs.
+# Blocks server advertisements in chat.
 # ==================================================
 anti-ad:
   # Enable/disable the anti-advertisement filter.

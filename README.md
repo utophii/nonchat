@@ -94,7 +94,6 @@ Visit our [Wiki](https://github.com/utophii/nonchat/wiki) for detailed setup ins
 | Status | Task |
 |:------:|------|
 | ⏳ | Make channel names clickable to switch to them |
-| 🔜 | Rewrite code to Kotlin |
 | ✅ | Refactor code to modular type for mc version support |
 
 </div>
