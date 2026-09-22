@@ -466,6 +466,7 @@ anti-ad:
   # Enable/disable the anti-advertisement filter.
   enabled: true
   # Detection sensitivity (0.0-1.0). Higher values may cause false positives.
+  # 0.0-0.24: explicit URLs only; 0.25+: bare domains/IPs; 0.5+: common ad phrases.
   sensitivity: 0.7
   # URLs that will not be blocked.
   whitelisted-urls:
