@@ -138,6 +138,16 @@ public class MessageManager {
             return;
         }
 
+        // Apply the same filters as public chat to player-sent private messages
+        if (playerSender != null && !applyFilters(playerSender, message)) {
+            if (plugin != null) {
+                plugin.logChatMessage("Filtered PM: Player=" + playerSender.getName()
+                        + " -> " + receiver.getName() + " Message='" + message
+                        + "' Reason=filter_blocked");
+            }
+            return;
+        }
+
         // Process message with color permission for sender
         String processedMessage = sender.hasPermission("nonchat.color") ? message : ColorUtil.stripFormatting(message);
 
