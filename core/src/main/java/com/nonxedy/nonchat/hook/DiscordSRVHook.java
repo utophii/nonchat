@@ -1,16 +1,12 @@
 package com.nonxedy.nonchat.hook;
 
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import com.nonxedy.nonchat.Nonchat;
-import com.nonxedy.nonchat.util.core.colors.ColorUtil;
-import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
 import github.scarsz.discordsrv.DiscordSRV;
 import github.scarsz.discordsrv.api.Subscribe;
-import github.scarsz.discordsrv.api.events.DiscordGuildMessageReceivedEvent;
 import github.scarsz.discordsrv.api.events.DiscordReadyEvent;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import github.scarsz.discordsrv.util.DiscordUtil;
@@ -82,35 +78,6 @@ public class DiscordSRVHook {
     @Subscribe
     public void onDiscordReady(DiscordReadyEvent event) {
         plugin.logResponse("Connected to Discord via DiscordSRV!");
-    }
-
-    /**
-     * Handle messages received from Discord
-     */
-    @Subscribe
-    public void onDiscordMessageReceived(DiscordGuildMessageReceivedEvent event) {
-        // Ignore messages from bots
-        if (event.getAuthor().isBot()) {
-            return;
-        }
-        
-        // Get channel mapping
-        String minecraftChannel = discordSRV.getDestinationGameChannelNameForTextChannel(event.getChannel());
-        
-        if (minecraftChannel != null) {
-            // Process the message if needed
-            // This could relay messages to specific in-game channels
-            // or handle commands sent from Discord
-            
-            // Example: relay formatted message to players in the corresponding channel
-            String formattedMessage = "§9[Discord] §b" + event.getAuthor().getName() + "§f: " + event.getMessage().getContentDisplay();
-            
-            // This is a simple broadcast to all players
-            // In a real implementation, you might want to send this only to players in the specific channel
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                MessageUtil.send(player, ColorUtil.parseComponentCached(formattedMessage));
-            }
-        }
     }
 
     /**
