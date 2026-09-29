@@ -1,6 +1,7 @@
 package com.nonxedy.nonchat.util.chat.filters;
 
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -10,6 +11,7 @@ import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
+import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
@@ -86,7 +88,30 @@ public class WordBlocker {
      * @return true if message is allowed, false if it contains banned content
      */
     public boolean isMessageAllowed(String message) {
-        String lowerMessage = message.toLowerCase();
+        return isMessageAllowed(message, MentionCompletionUtil::isOnlinePlayerName);
+    }
+
+    /**
+     * Checks if a message is allowed by scanning for banned words and patterns,
+     * ignoring mentions of players matched by {@code onlinePlayerPredicate}.
+     *
+     * @param message The message to check
+     * @param onlinePlayerPredicate Predicate identifying online player names
+     * @return true if message is allowed, false if it contains banned content
+     */
+    public boolean isMessageAllowed(String message, Predicate<String> onlinePlayerPredicate) {
+        if (message == null || message.isEmpty()) {
+            return true;
+        }
+
+        String sanitized = MentionCompletionUtil.stripMentions(
+                ColorUtil.stripFormatting(message),
+                onlinePlayerPredicate);
+        if (sanitized.isEmpty()) {
+            return true;
+        }
+
+        String lowerMessage = sanitized.toLowerCase();
 
         // Check banned words (case-insensitive)
         for (String word : bannedWords) {
@@ -99,7 +124,7 @@ public class WordBlocker {
         for (String pattern : bannedPatterns) {
             try {
                 Pattern regex = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
-                if (regex.matcher(message).find()) {
+                if (regex.matcher(sanitized).find()) {
                     return false;
                 }
             } catch (PatternSyntaxException e) {

@@ -13,6 +13,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.nonxedy.nonchat.api.MessageFilter;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
+import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.chat.filters.MessageHistory.MessageEntry;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
@@ -149,6 +150,11 @@ public class SpamDetector implements MessageFilter {
         if (message == null) {
             return false;
         }
+
+        String sanitizedMessage = MentionCompletionUtil.stripMentions(ColorUtil.stripFormatting(message));
+        if (sanitizedMessage.isEmpty()) {
+            return false;
+        }
         
         double threshold = config.getAntiSpamSimilarThreshold();
         int timeWindow = config.getAntiSpamSimilarTimeWindow();
@@ -165,8 +171,14 @@ public class SpamDetector implements MessageFilter {
             if (entry.getMessage().equals(message)) {
                 continue;
             }
+
+            String sanitizedEntry = MentionCompletionUtil.stripMentions(
+                    ColorUtil.stripFormatting(entry.getMessage()));
+            if (sanitizedEntry.isEmpty() || sanitizedEntry.equals(sanitizedMessage)) {
+                continue;
+            }
             
-            double similarity = TextSimilarityUtil.calculateSimilarity(message, entry.getMessage());
+            double similarity = TextSimilarityUtil.calculateSimilarity(sanitizedMessage, sanitizedEntry);
             if (similarity >= threshold) {
                 return true;
             }

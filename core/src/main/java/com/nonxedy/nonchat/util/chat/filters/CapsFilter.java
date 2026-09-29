@@ -1,5 +1,10 @@
 package com.nonxedy.nonchat.util.chat.filters;
 
+import java.util.function.Predicate;
+
+import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
+import com.nonxedy.nonchat.util.core.colors.ColorUtil;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -20,24 +25,40 @@ public class CapsFilter {
      * @return true if message exceeds caps limit, false otherwise
      */
     public boolean shouldFilter(String message) {
+        return shouldFilter(message, MentionCompletionUtil::isOnlinePlayerName);
+    }
+
+    /**
+     * Determines if a message should be filtered for excessive caps, ignoring
+     * mentions of players matched by {@code onlinePlayerPredicate}.
+     *
+     * @param message The message to check
+     * @param onlinePlayerPredicate Predicate identifying online player names
+     * @return true if message exceeds caps limit, false otherwise
+     */
+    public boolean shouldFilter(String message, Predicate<String> onlinePlayerPredicate) {
         // First strictly check if filter is disabled
-        if (!this.enabled) {
+        if (!this.enabled || message == null) {
             return false;
         }
-        
+
+        String sanitized = MentionCompletionUtil.stripMentions(
+                ColorUtil.stripFormatting(message),
+                onlinePlayerPredicate);
+
         // Then check message length
-        if (message.length() < this.minLength) {
+        if (sanitized.length() < this.minLength) {
             return false;
         }
 
         int capsCount = 0;
-        for (char c : message.toCharArray()) {
+        for (char c : sanitized.toCharArray()) {
             if (Character.isUpperCase(c)) {
                 capsCount++;
             }
         }
 
-        double percentage = (double) capsCount / message.length() * 100;
+        double percentage = (double) capsCount / sanitized.length() * 100;
         return percentage > this.maxCapsPercentage;
     }
 

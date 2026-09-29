@@ -2,6 +2,7 @@ package com.nonxedy.nonchat.util.chat.filters;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -11,6 +12,7 @@ import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.api.MessageFilter;
 import com.nonxedy.nonchat.config.PluginConfig;
+import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
@@ -82,14 +84,25 @@ public class AdDetector implements MessageFilter {
 
     @Override
     public boolean shouldFilter(Player player, String message) {
-        if (player.hasPermission("nonchat.ad.bypass") || message == null || message.isBlank()) {
+        return shouldFilter(player, message, MentionCompletionUtil::isOnlinePlayerName);
+    }
+
+    public boolean shouldFilter(Player player, String message, Predicate<String> onlinePlayerPredicate) {
+        if ((player != null && player.hasPermission("nonchat.ad.bypass")) || message == null || message.isBlank()) {
+            return false;
+        }
+
+        String sanitized = MentionCompletionUtil.stripMentions(
+                ColorUtil.stripFormatting(message),
+                onlinePlayerPredicate);
+        if (sanitized.isBlank()) {
             return false;
         }
 
         float sensitivity = getSensitivity();
 
         // Explicit URLs are certain advertisements regardless of sensitivity.
-        if (containsUnwhitelistedMatch(EXPLICIT_URL_PATTERN, message)) {
+        if (containsUnwhitelistedMatch(EXPLICIT_URL_PATTERN, sanitized)) {
             notifyStaff(player, message);
             return true;
         }
@@ -98,14 +111,14 @@ public class AdDetector implements MessageFilter {
         // the configured sensitivity. This is what prevents version numbers
         // such as 1.21.11 from being treated as advertisements.
         if (sensitivity >= BARE_HOST_SENSITIVITY
-                && containsUnwhitelistedMatch(BARE_HOST_PATTERN, message)) {
+                && containsUnwhitelistedMatch(BARE_HOST_PATTERN, sanitized)) {
             notifyStaff(player, message);
             return true;
         }
 
         // Textual heuristics are the least certain detection mode and are only
         // enabled at higher sensitivity values.
-        if (sensitivity >= COMMON_TERMS_SENSITIVITY && detectCommonAdTerms(message)) {
+        if (sensitivity >= COMMON_TERMS_SENSITIVITY && detectCommonAdTerms(sanitized)) {
             notifyStaff(player, message);
             return true;
         }
