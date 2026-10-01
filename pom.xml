@@ -32,7 +32,7 @@
     <luckperms.version>5.5</luckperms.version>
     <placeholderapi.version>2.12.2</placeholderapi.version>
     <vault.version>1.7.1</vault.version>
-    <lombok.version>1.18.46</lombok.version>
+    <lombok.version>1.18.48</lombok.version>
     <caffeine.version>3.2.3</caffeine.version>
     <discordsrv.version>1.28.0</discordsrv.version>
     <faststats.version>0.22.0</faststats.version>
