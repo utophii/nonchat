@@ -33,6 +33,7 @@ import com.nonxedy.nonchat.service.ConfigService;
 import com.nonxedy.nonchat.service.DeathMessageService;
 import com.nonxedy.nonchat.util.InteractivePlaceholderManager;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
+import com.nonxedy.nonchat.util.chat.filters.TldListUpdater;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.debugging.Debugger;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
@@ -126,6 +127,9 @@ public class Nonchat extends JavaPlugin {
 
             // Initialize LinkDetector with translation support before creating commands
             LinkDetector.initialize(configService.getMessages());
+            if (configService.getConfig().shouldUpdateTldList()) {
+                TldListUpdater.updateAsync(this, configService.getConfig().getTldListUrl());
+            }
 
             // Initialize service layer that depends on managers
             this.chatService = new ChatService(chatManager, messageManager, broadcastManager, configService.getConfig());
@@ -412,6 +416,9 @@ public class Nonchat extends JavaPlugin {
             // Reinitialize LinkDetector with updated messages before reloading commands
             if (configService != null) {
                 LinkDetector.initialize(configService.getMessages());
+                if (configService.getConfig().shouldUpdateTldList()) {
+                    TldListUpdater.updateAsync(this, configService.getConfig().getTldListUrl());
+                }
             }
 
             if (commandService != null) {
@@ -448,6 +455,9 @@ public class Nonchat extends JavaPlugin {
             // Reinitialize LinkDetector with updated messages before reloading commands
             if (configService != null) {
                 LinkDetector.initialize(configService.getMessages());
+                if (configService.getConfig().shouldUpdateTldList()) {
+                    TldListUpdater.updateAsync(this, configService.getConfig().getTldListUrl());
+                }
             }
 
             // Reload commands and channels after LinkDetector is reinitialized

@@ -34,7 +34,9 @@ public class AdDetector implements MessageFilter {
      * A bare domain/IP is more prone to false positives, so it is checked only
      * from the medium sensitivity level upwards. Numeric versions such as
      * 1.21.11 do not match: a domain must end in a letter TLD and an IPv4
-     * address must contain four octets.
+     * address must contain four octets. Matches are additionally validated by
+     * {@link TldList} so that ordinary "word.word" chat text like
+     * "hello.hello" is not mistaken for a domain.
      */
     private static final Pattern BARE_HOST_PATTERN = Pattern.compile(
             "(?i)(?<![\\w.-])(?:" + DOMAIN + "|" + IPV4
@@ -102,16 +104,19 @@ public class AdDetector implements MessageFilter {
         float sensitivity = getSensitivity();
 
         // Explicit URLs are certain advertisements regardless of sensitivity.
-        if (containsUnwhitelistedMatch(EXPLICIT_URL_PATTERN, sanitized)) {
+        if (containsUnwhitelistedMatch(EXPLICIT_URL_PATTERN, sanitized, candidate -> true)) {
             notifyStaff(player, message);
             return true;
         }
 
         // Bare domains and IP addresses are less certain and therefore respect
         // the configured sensitivity. This is what prevents version numbers
-        // such as 1.21.11 from being treated as advertisements.
+        // such as 1.21.11 from being treated as advertisements. The TLD check
+        // additionally prevents ordinary "word.word" chat text such as
+        // "hello.hello" from being mistaken for a domain.
         if (sensitivity >= BARE_HOST_SENSITIVITY
-                && containsUnwhitelistedMatch(BARE_HOST_PATTERN, sanitized)) {
+                && containsUnwhitelistedMatch(BARE_HOST_PATTERN, sanitized,
+                        TldList::isPlausibleHost)) {
             notifyStaff(player, message);
             return true;
         }
@@ -137,10 +142,19 @@ public class AdDetector implements MessageFilter {
         return Math.max(0f, Math.min(1f, sensitivity));
     }
 
-    private boolean containsUnwhitelistedMatch(Pattern pattern, String message) {
+    /**
+     * Searches the message for pattern matches that pass the plausibility
+     * check and are not whitelisted. The plausibility check lets callers
+     * discard syntactically valid but semantically bogus matches (such as
+     * "hello.hello", whose "TLD" is not a real TLD) before the whitelist is
+     * consulted.
+     */
+    private boolean containsUnwhitelistedMatch(Pattern pattern, String message,
+                                               Predicate<String> plausibilityCheck) {
         Matcher matcher = pattern.matcher(message);
         while (matcher.find()) {
-            if (!isWhitelisted(matcher.group())) {
+            String candidate = matcher.group();
+            if (plausibilityCheck.test(candidate) && !isWhitelisted(candidate)) {
                 return true;
             }
         }
@@ -149,7 +163,9 @@ public class AdDetector implements MessageFilter {
 
     private boolean isWhitelisted(String url) {
         String normalizedUrl = normalizeUrl(url);
-        List<String> whitelistedUrls = config.getAntiAdWhitelistedUrls();
+        List<String> whitelistedUrls = config != null
+                ? config.getAntiAdWhitelistedUrls()
+                : List.of();
 
         for (String whitelisted : whitelistedUrls) {
             if (normalizedUrl.equals(normalizeUrl(whitelisted))) {

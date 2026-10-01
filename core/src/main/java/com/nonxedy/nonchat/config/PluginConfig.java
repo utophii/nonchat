@@ -1275,6 +1275,26 @@ public class PluginConfig {
     }
 
     /**
+     * Checks whether the TLD registry should be refreshed from the network
+     * on startup and reload. When disabled (or when the download fails),
+     * the registry snapshot bundled in the jar is used.
+     * @return true if network refresh is enabled
+     */
+    public boolean shouldUpdateTldList() {
+        return config.getBoolean("anti-ad.update-tld-list", true);
+    }
+
+    /**
+     * Gets the URL of the TLD registry source. Any mirror of the official
+     * IANA tlds-alpha-by-domain.txt file can be used.
+     * @return registry URL
+     */
+    public String getTldListUrl() {
+        return config.getString("anti-ad.tld-list-url",
+                "https://data.iana.org/TLD/tlds-alpha-by-domain.txt");
+    }
+
+    /**
      * Checks if staff should be notified about ads
      * @return true if notifications enabled
      */

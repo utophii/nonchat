@@ -25,6 +25,20 @@ public class LinkDetector {
         LinkDetector.messages = messages;
     }
 
+    /**
+     * Explicit schemes and a {@code www.} prefix are unambiguous; bare
+     * matches are only linkified when they end in a real TLD, so ordinary
+     * "word.word" text such as "hello.hello" stays plain.
+     */
+    private static boolean isLinkCandidate(String candidate) {
+        String lower = candidate.toLowerCase(java.util.Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")
+                || lower.startsWith("www.")) {
+            return true;
+        }
+        return TldList.hasKnownTld(candidate);
+    }
+
     public static Component makeLinksClickable(String text) {
         if (text == null || text.isEmpty()) {
             return Component.empty();
@@ -56,7 +70,11 @@ public class LinkDetector {
                 parts.add(ColorUtil.parseComponent(beforeUrl));
             }
 
-            parts.add(createLinkComponent(cleanUrl));
+            if (isLinkCandidate(cleanUrl)) {
+                parts.add(createLinkComponent(cleanUrl));
+            } else {
+                parts.add(ColorUtil.parseComponent(cleanUrl));
+            }
 
             originalLastEnd = originalUrlEnd;
         }

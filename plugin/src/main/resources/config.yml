@@ -471,6 +471,14 @@ anti-ad:
   # URLs that will not be blocked.
   whitelisted-urls:
     - "discord.gg/NAWsxe3J3R"
+  # Refresh the TLD registry from the network on startup and on /nonchat
+  # reload (asynchronously, chat is never blocked). Until the download
+  # succeeds - or when it fails - the registry snapshot bundled in the jar
+  # is used, so the filter works fully offline.
+  update-tld-list: true
+  # Source of the TLD registry. Any mirror of the official IANA
+  # tlds-alpha-by-domain.txt file works (for example, your own CDN copy).
+  tld-list-url: "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
   # Notify staff when an advertisement is detected (requires 'nonchat.ad.notify' permission).
   staff-notify: true
   # Message sent to staff and console when an advertisement is detected.
