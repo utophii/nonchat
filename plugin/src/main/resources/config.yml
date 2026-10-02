@@ -9,6 +9,7 @@
 # - Vault support.
 # - PlaceHolderAPI support.
 # - DiscordSRV support.
+# - BusyBee ChatColor support (native component API).
 # ==================================================
 
 # ==================================================
@@ -26,6 +27,18 @@ update-checker: true
 
 # Default channel that players will join upon entering the server.
 default-channel: "local"
+
+# ==================================================
+# OPTIONAL INTEGRATIONS
+# ==================================================
+integrations:
+  chatcolor:
+    # BusyBee ChatColor: apply the player's current selection/default through its
+    # public API to channel message bodies (including staff chat).
+    # No %chatcolor_message% placeholder or chat event priority changes are needed.
+    # nonchat.color still controls manually entered formatting, not this selection.
+    # ChatColor's settings.apply-to-message is also respected.
+    enabled: true
 
 # ==================================================
 # MESSAGE DELIVERY NOTIFICATIONS

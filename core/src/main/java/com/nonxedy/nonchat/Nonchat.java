@@ -18,6 +18,7 @@ import com.nonxedy.nonchat.core.BroadcastManager;
 import com.nonxedy.nonchat.core.ChatManager;
 import com.nonxedy.nonchat.core.IndirectDeathTracker;
 import com.nonxedy.nonchat.core.MessageManager;
+import com.nonxedy.nonchat.hook.ChatColorHook;
 import com.nonxedy.nonchat.hook.DiscordSRVHook;
 import com.nonxedy.nonchat.integration.DiscordSRVIntegration;
 import com.nonxedy.nonchat.listener.DamageTrackingListener;
@@ -60,6 +61,7 @@ public class Nonchat extends JavaPlugin {
     private Debugger debugger;
     private IgnoreCommand ignoreCommand;
     private DiscordSRVIntegration discordSRVIntegration;
+    private ChatColorHook chatColorHook;
     private InteractivePlaceholderManager placeholderManager;
     private IndirectDeathTracker indirectDeathTracker;
     private DamageTrackingListener damageTrackingListener;
@@ -294,6 +296,13 @@ public class Nonchat extends JavaPlugin {
         }
 
         try {
+            this.chatColorHook = new ChatColorHook(this);
+            this.chatColorHook.register();
+        } catch (Exception e) {
+            getLogger().log(Level.WARNING, "Failed to setup ChatColor integration", e);
+        }
+
+        try {
             ChannelAPI.initialize(new ChannelAPI.ChannelAccess() {
                 @Override
                 public Collection<Channel> getAllChannels() {
@@ -349,6 +358,10 @@ public class Nonchat extends JavaPlugin {
     @Override
     public void onDisable() {
         try {
+            if (chatColorHook != null) {
+                chatColorHook.close();
+            }
+
             // Clean up all chat bubbles and display entities
             if (chatManager != null) {
                 chatManager.cleanup();
@@ -409,6 +422,10 @@ public class Nonchat extends JavaPlugin {
                 configService.reload();
             }
 
+            if (chatColorHook != null) {
+                chatColorHook.refresh();
+            }
+
             if (broadcastManager != null) {
                 broadcastManager.reload();
             }
@@ -445,6 +462,10 @@ public class Nonchat extends JavaPlugin {
             // Reload configuration
             if (configService != null) {
                 configService.reload();
+            }
+
+            if (chatColorHook != null) {
+                chatColorHook.refresh();
             }
 
             // Reinitialize services that need it
@@ -611,6 +632,10 @@ public class Nonchat extends JavaPlugin {
 
     public ConfigService getConfigService() {
         return configService;
+    }
+
+    public ChatColorHook getChatColorHook() {
+        return chatColorHook;
     }
 
     public InteractivePlaceholderManager getPlaceholderManager() {

@@ -121,6 +121,9 @@ public class PluginConfig {
         // Default channel setting
         config.set("default-channel", "local");
         
+        // Native optional integrations
+        config.set("integrations.chatcolor.enabled", true);
+
         // Message delivery notifications
         config.set("message-delivery.notify-undelivered", true);
 

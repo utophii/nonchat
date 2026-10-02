@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.api.Channel;
 import com.nonxedy.nonchat.api.ChannelAPI;
+import com.nonxedy.nonchat.chat.channel.BaseChannel;
 import com.nonxedy.nonchat.chat.channel.ChannelManager;
 import com.nonxedy.nonchat.chat.channel.ResolvedChannelMessage;
 import com.nonxedy.nonchat.command.impl.IgnoreCommand;
@@ -299,7 +300,13 @@ public class ChatManager {
         String messageToSend = context.finalMessage;
         String processedMessage = context.processedMessage;
 
-        Component formattedMessage = channel.formatMessage(player, messageToSend);
+        // Native ChatColor receives the processed body before mention color/reset
+        // strings are injected. The channel restores mention styling on components
+        // after applying the selection, so resets cannot mask a color or gradient.
+        boolean nativeChatColor = channel instanceof BaseChannel
+                && plugin.getChatColorHook() != null && plugin.getChatColorHook().isEnabled();
+        Component formattedMessage = channel.formatMessage(player,
+                nativeChatColor ? processedMessage : messageToSend);
         context.messageDelivered = broadcastMessage(player, formattedMessage, channel, processedMessage);
 
         // Notify if message wasn't delivered
