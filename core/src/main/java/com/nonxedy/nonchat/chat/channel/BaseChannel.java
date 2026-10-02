@@ -332,7 +332,8 @@ public class BaseChannel implements Channel {
     private Component formatMessageWithChatColor(Player player, String message, String format, Nonchat plugin) {
         Component body = processMessageContent(player, message, "", false);
         body = plugin.getChatColorHook().applyColor(player, body);
-        if (plugin.getConfigService().getBoolean("mention-colors.enabled", true)) {
+        if (plugin.getConfigService().getBoolean("mentions.enabled", true)
+                && plugin.getConfigService().getBoolean("mention-colors.enabled", true)) {
             body = MentionColoring.apply(body,
                     plugin.getConfigService().getString("mention-colors.color", "&#FFAFFB"),
                     plugin.getConfigService().getBoolean("mentions.allow-without-at", false),
@@ -528,6 +529,7 @@ public class BaseChannel implements Channel {
 
         Plugin plugin = Bukkit.getPluginManager().getPlugin("nonchat");
         if (!(plugin instanceof Nonchat nonchatPlugin)
+                || !nonchatPlugin.getConfig().getBoolean("mentions.enabled", true)
                 || !nonchatPlugin.getConfig().getBoolean("mention-colors.enabled", true)) {
             return messageComponent;
         }

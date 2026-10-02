@@ -375,7 +375,7 @@ public class MessageCommand implements CommandExecutor, TabCompleter {
                     .collect(Collectors.toList());
         }
     
-        if (args.length >= 2) {
+        if (args.length >= 2 && config.isMentionsEnabled()) {
             List<String> mentionSuggestions = MentionCompletionUtil.getMentionSuggestions(
                     sender,
                     args[args.length - 1],

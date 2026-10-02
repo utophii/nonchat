@@ -64,7 +64,7 @@ public class ReplyCommand implements CommandExecutor, TabCompleter {
             return Collections.emptyList();
         }
 
-        if (args.length > 0) {
+        if (args.length > 0 && plugin.getConfigService().getConfig().isMentionsEnabled()) {
             List<String> mentionSuggestions = MentionCompletionUtil.getMentionSuggestions(
                     sender,
                     args[args.length - 1],

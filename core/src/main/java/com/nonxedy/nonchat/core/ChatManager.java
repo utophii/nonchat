@@ -110,7 +110,9 @@ public class ChatManager {
             }
 
             // Handle mentions
-            handleMentions(player, context.processedMessage, context.channel);
+            if (config.isMentionsEnabled()) {
+                handleMentions(player, context.processedMessage, context.channel);
+            }
 
             // Format and broadcast
             broadcastProcessedMessage(context);
@@ -285,7 +287,7 @@ public class ChatManager {
         }
 
         // Apply mention coloring if enabled
-        String messageToSend = config.isMentionColoringEnabled()
+        String messageToSend = (config.isMentionsEnabled() && config.isMentionColoringEnabled())
                 ? processMentionColoring(processedMessage)
                 : processedMessage;
 

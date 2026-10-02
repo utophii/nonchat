@@ -619,6 +619,25 @@ public class PluginConfig {
     }
 
     /**
+     * Checks if the mention system (coloring, sound, notification, tab-completion)
+     * is enabled globally. When set to false all @mention behaviour is disabled,
+     * including coloring, sound, notification popup, and @-name tab completion.
+     * @return true if the mention system is enabled
+     */
+    public boolean isMentionsEnabled() {
+        return config.getBoolean("mentions.enabled", true);
+    }
+
+    /**
+     * Sets the global mention system enabled state
+     * @param enabled New enabled state
+     */
+    public void setMentionsEnabled(boolean enabled) {
+        config.set("mentions.enabled", enabled);
+        saveConfig();
+    }
+
+    /**
      * Checks if players can be mentioned by typing their name without the '@' prefix
      * @return true if bare player names should also trigger mentions
      */
