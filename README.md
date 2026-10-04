@@ -125,6 +125,16 @@ If you enjoy nonchat, consider supporting its development:
   <img src="assets/screenshot6.png" alt="Interactive Placeholders" width="400"/>
 </div>
 
+## 📺 Videos
+
+<div align="center">
+
+[![nonchat — Ajneb97](https://i.ytimg.com/vi/8nD5Ysuqv8U/maxresdefault.jpg)](https://www.youtube.com/watch?v=8nD5Ysuqv8U "PLUGINS para tu SERVIDOR de Minecraft — NONCHAT")
+
+*PLUGINS para tu SERVIDOR de Minecraft - NONCHAT* by [Ajneb97](https://www.youtube.com/@Ajneb97) (Español, 25:11)
+
+</div>
+
 ## 📝 License
 
 nonchat is licensed under MIT License.
