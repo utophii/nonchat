@@ -485,7 +485,11 @@ anti-ad:
   # Detection sensitivity (0.0-1.0). Higher values may cause false positives.
   # 0.0-0.24: explicit URLs only; 0.25+: bare domains/IPs; 0.5+: common ad phrases.
   sensitivity: 0.7
-  # URLs that will not be blocked.
+  # URL/domain rules for the anti-ad filter.
+  # A bare domain whitelists itself and all subdomains (for example, example.com also allows mc.example.com).
+  # Use *.example.com to whitelist subdomains only.
+  # URL rules with a path remain limited to that exact URL, as in this Discord invite example.
+  # Links not matched by a whitelist rule are blocked by the anti-ad filter as usual.
   whitelisted-urls:
     - "discord.gg/NAWsxe3J3R"
   # Refresh the TLD registry from the network on startup and on /nonchat

@@ -143,11 +143,10 @@ public class AdDetector implements MessageFilter {
     }
 
     /**
-     * Searches the message for pattern matches that pass the plausibility
-     * check and are not whitelisted. The plausibility check lets callers
-     * discard syntactically valid but semantically bogus matches (such as
-     * "hello.hello", whose "TLD" is not a real TLD) before the whitelist is
-     * consulted.
+     * Searches the message for plausible matches that are not whitelisted.
+     * The plausibility check lets callers discard syntactically valid but
+     * semantically bogus matches (such as "hello.hello") before consulting
+     * the configured domain rules.
      */
     private boolean containsUnwhitelistedMatch(Pattern pattern, String message,
                                                Predicate<String> plausibilityCheck) {
@@ -162,17 +161,63 @@ public class AdDetector implements MessageFilter {
     }
 
     private boolean isWhitelisted(String url) {
-        String normalizedUrl = normalizeUrl(url);
-        List<String> whitelistedUrls = config != null
-                ? config.getAntiAdWhitelistedUrls()
-                : List.of();
-
-        for (String whitelisted : whitelistedUrls) {
-            if (normalizedUrl.equals(normalizeUrl(whitelisted))) {
+        for (String rule : getConfiguredUrlRules()) {
+            if (rule != null && matchesConfiguredAddress(url, rule)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private List<String> getConfiguredUrlRules() {
+        if (config == null) {
+            return List.of();
+        }
+        List<String> rules = config.getAntiAdWhitelistedUrls();
+        return rules != null ? rules : List.of();
+    }
+
+    /**
+     * A domain-only rule matches its host and all descendant subdomains.
+     * Rules containing a URL path remain exact matches, preserving the
+     * existing ability to allow a single invite URL such as discord.gg/code.
+     * A leading {@code *.} scopes a whitelist rule to subdomains only.
+     */
+    private boolean matchesConfiguredAddress(String address, String configuredRule) {
+        String normalizedAddress = normalizeUrl(address);
+        String normalizedRule = normalizeUrl(configuredRule);
+
+        // Preserve prior behavior where www.example.com and example.com were
+        // considered equivalent for exact URL entries.
+        if (normalizeForExactMatch(normalizedAddress)
+                .equals(normalizeForExactMatch(normalizedRule))) {
+            return true;
+        }
+
+        ParsedAddress candidate = parseAddress(normalizedAddress);
+        ParsedAddress rule = parseAddress(normalizedRule);
+        if (candidate == null || rule == null) {
+            return false;
+        }
+
+        boolean domainOnlyRule = rule.path().isEmpty() || "/".equals(rule.path());
+        boolean wildcardPathMatch = rule.subdomainsOnly()
+                && rule.path().equals(candidate.path());
+        if (!domainOnlyRule && !wildcardPathMatch) {
+            return false;
+        }
+        if (rule.port() != null && !rule.port().equals(candidate.port())) {
+            return false;
+        }
+
+        if (candidate.host().equals(rule.host())) {
+            return !rule.subdomainsOnly();
+        }
+        return candidate.host().endsWith("." + rule.host());
+    }
+
+    private String normalizeForExactMatch(String value) {
+        return value.replaceFirst("(?i)^www\\.", "");
     }
 
     private String normalizeUrl(String value) {
@@ -181,13 +226,65 @@ public class AdDetector implements MessageFilter {
         }
 
         String normalized = value.trim()
-                .replaceFirst("(?i)^[a-z][a-z0-9+.-]*://", "")
-                .replaceFirst("(?i)^www\\.", "");
+                .replaceFirst("(?i)^[a-z][a-z0-9+.-]*://", "");
 
-        // Do not make a URL fail its whitelist entry just because it was
-        // followed by ordinary sentence punctuation.
+        // Do not make a URL fail its rule just because it was followed by
+        // ordinary sentence punctuation. Keep www. here so wildcard rules can
+        // correctly treat it as a subdomain; exact matching handles the legacy
+        // www/non-www equivalence separately.
         normalized = normalized.replaceFirst("[.,!?;:)]*$", "");
         return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private ParsedAddress parseAddress(String normalizedAddress) {
+        if (normalizedAddress.isEmpty()) {
+            return null;
+        }
+
+        int suffixStart = firstSuffixIndex(normalizedAddress);
+        String authority = suffixStart >= 0
+                ? normalizedAddress.substring(0, suffixStart)
+                : normalizedAddress;
+        String path = suffixStart >= 0
+                ? normalizedAddress.substring(suffixStart)
+                : "";
+
+        int at = authority.lastIndexOf('@');
+        if (at >= 0) {
+            authority = authority.substring(at + 1);
+        }
+
+        boolean subdomainsOnly = authority.startsWith("*.");
+        if (subdomainsOnly) {
+            authority = authority.substring(2);
+        }
+
+        String port = null;
+        int colon = authority.lastIndexOf(':');
+        if (colon > 0 && authority.substring(colon + 1).matches("\\d+")) {
+            port = authority.substring(colon + 1);
+            authority = authority.substring(0, colon);
+        }
+
+        if (authority.isEmpty()) {
+            return null;
+        }
+        return new ParsedAddress(authority, port, path, subdomainsOnly);
+    }
+
+    private int firstSuffixIndex(String value) {
+        int index = -1;
+        for (char delimiter : new char[] {'/', '?', '#'}) {
+            int next = value.indexOf(delimiter);
+            if (next >= 0 && (index < 0 || next < index)) {
+                index = next;
+            }
+        }
+        return index;
+    }
+
+    private record ParsedAddress(String host, String port, String path,
+                                 boolean subdomainsOnly) {
     }
 
     private boolean detectCommonAdTerms(String message) {
