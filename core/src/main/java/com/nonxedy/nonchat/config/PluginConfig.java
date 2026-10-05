@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1677,82 +1678,10 @@ public class PluginConfig {
                 List<String> templateAsList = readResourceToList("config.yml");
                 HashMap<Integer, FileLine> templateLines = processFileLines(templateAsList);
 
-                StringBuilder builder = new StringBuilder();
-                HashMap<Integer, String> headers = new HashMap<>();
-
-                int templatePositions = templateLines.size() + 1;
-                for (int pos = 1; pos < templatePositions; pos++) {
-                    FileLine fileLine = templateLines.get(pos);
-                    if (fileLine == null) continue;
-
-                    String line = fileLine.getLine();
-                    if (!fileLine.isValue() && !fileLine.isHeader() && !fileLine.isList()) {
-                        builder.append(line).append("\n");
-                        continue;
-                    }
-
-                    int spaces = 0;
-                    for (char c : line.toCharArray()) {
-                        if (c == ' ') spaces++;
-                        else break;
-                    }
-
-                    int point = spaces / 2;
-                    String identifier = line.substring(spaces).split(":")[0];
-                    if (fileLine.isHeader()) headers.put(point, identifier);
-
-                    if (fileLine.isValue()) {
-                        StringBuilder path = new StringBuilder();
-                        for (int i = 0; i <= point - 1; i++) {
-                            String header = headers.get(i);
-                            if (header != null) path.append(header).append(".");
-                        }
-                        path.append(identifier);
-
-                        for (int i = 0; i < spaces; i++) builder.append(" ");
-                        builder.append(identifier).append(": ");
-
-                        Object value = currentConfig.get(path.toString());
-                        if (value instanceof String string) {
-                            String stringValue = string.replace("\n", "\\n");
-                            builder.append("\"").append(stringValue).append("\"\n");
-                        } else {
-                            builder.append(value).append("\n");
-                        }
-                        continue;
-                    }
-
-                    if (fileLine.isList()) {
-                        StringBuilder path = new StringBuilder();
-                        for (int i = 0; i <= point - 1; i++) {
-                            String header = headers.get(i);
-                            if (header != null) path.append(header).append(".");
-                        }
-                        path.append(identifier);
-
-                        for (int i = 0; i < spaces; i++) builder.append(" ");
-                        builder.append(identifier).append(":");
-
-                        List<String> value = currentConfig.getStringList(path.toString());
-                        if (value.isEmpty()) builder.append(" []\n");
-                        else {
-                            builder.append("\n");
-                            for (String listLine : value) {
-                                for (int i = 0; i < spaces + 2; i++) builder.append(" ");
-                                String escapedListLine = listLine.replace("\n", "\\n");
-                                boolean useSingleQuotes = escapedListLine.contains("\\");
-                                String quote = useSingleQuotes ? "'" : "\"";
-                                builder.append("- ").append(quote).append(escapedListLine).append(quote).append("\n");
-                            }
-                        }
-                        continue;
-                    }
-
-                    builder.append(line).append("\n");
-                }
+                String updatedConfig = buildUpdatedConfig(templateLines, currentConfig, defaultConfig);
 
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(configFile))) {
-                    writer.write(builder.toString());
+                    writer.write(updatedConfig);
                     writer.flush();
                 }
                 
@@ -1765,6 +1694,211 @@ public class PluginConfig {
         } catch (IOException e) {
             plugin.logError("Failed to update configuration: " + e.getMessage());
         }
+    }
+
+    /**
+     * Builds an updated configuration from the bundled template while keeping user-defined
+     * keys that are not present in the template (for example custom broadcast entries).
+     */
+    private String buildUpdatedConfig(HashMap<Integer, FileLine> templateLines,
+                                      FileConfiguration currentConfig,
+                                      FileConfiguration defaultConfig) {
+        StringBuilder builder = new StringBuilder();
+        HashMap<Integer, String> headers = new HashMap<>();
+        List<SectionFrame> openSections = new ArrayList<>();
+        Set<String> preservedCustomPaths = new HashSet<>();
+
+        int templatePositions = templateLines.size() + 1;
+        for (int pos = 1; pos < templatePositions; pos++) {
+            FileLine fileLine = templateLines.get(pos);
+            if (fileLine == null) continue;
+
+            String line = fileLine.getLine();
+            int spaces = countLeadingSpaces(line);
+            if (!fileLine.isValue() && !fileLine.isHeader() && !fileLine.isList()) {
+                if (isComment(line)) {
+                    closeCompletedSections(builder, openSections, currentConfig, defaultConfig, spaces, preservedCustomPaths);
+                }
+                builder.append(line).append("\n");
+                continue;
+            }
+
+            closeCompletedSections(builder, openSections, currentConfig, defaultConfig, spaces, preservedCustomPaths);
+
+            int point = spaces / 2;
+            String identifier = line.substring(spaces).split(":", 2)[0];
+            String path = buildConfigPath(headers, point, identifier);
+
+            if (fileLine.isHeader()) {
+                headers.put(point, identifier);
+            }
+
+            if (fileLine.isValue()) {
+                appendIndent(builder, spaces);
+                builder.append(identifier).append(": ");
+                builder.append(formatYamlValue(currentConfig.get(path))).append("\n");
+                continue;
+            }
+
+            if (fileLine.isList()) {
+                appendIndent(builder, spaces);
+                builder.append(identifier).append(":");
+
+                List<String> value = currentConfig.getStringList(path);
+                if (value.isEmpty()) {
+                    builder.append(" []\n");
+                } else {
+                    builder.append("\n");
+                    for (String listLine : value) {
+                        appendIndent(builder, spaces + 2);
+                        builder.append("- ").append(formatYamlValue(listLine)).append("\n");
+                    }
+                }
+                continue;
+            }
+
+            builder.append(line).append("\n");
+            openSections.add(new SectionFrame(path, spaces));
+        }
+
+        closeCompletedSections(builder, openSections, currentConfig, defaultConfig, -1, preservedCustomPaths);
+        appendMissingCustomChildren(builder, currentConfig, defaultConfig, "", 0, preservedCustomPaths);
+        return builder.toString();
+    }
+
+    /**
+     * Closes template sections whose indentation is no longer active and appends
+     * non-template children under those sections before leaving them.
+     */
+    private void closeCompletedSections(StringBuilder builder,
+                                        List<SectionFrame> openSections,
+                                        FileConfiguration currentConfig,
+                                        FileConfiguration defaultConfig,
+                                        int nextIndent,
+                                        Set<String> preservedCustomPaths) {
+        while (!openSections.isEmpty() && nextIndent <= openSections.get(openSections.size() - 1).indent()) {
+            SectionFrame section = openSections.remove(openSections.size() - 1);
+            appendMissingCustomChildren(
+                builder,
+                currentConfig,
+                defaultConfig,
+                section.path(),
+                section.indent() + 2,
+                preservedCustomPaths
+            );
+        }
+    }
+
+    /**
+     * Appends user-created keys that exist in the current config but not in the
+     * bundled default config under the given section.
+     */
+    private void appendMissingCustomChildren(StringBuilder builder,
+                                             FileConfiguration currentConfig,
+                                             FileConfiguration defaultConfig,
+                                             String sectionPath,
+                                             int indent,
+                                             Set<String> preservedCustomPaths) {
+        ConfigurationSection currentSection = sectionPath.isEmpty()
+            ? currentConfig
+            : currentConfig.getConfigurationSection(sectionPath);
+        if (currentSection == null) return;
+
+        for (String childKey : currentSection.getKeys(false)) {
+            String childPath = sectionPath.isEmpty() ? childKey : sectionPath + "." + childKey;
+            if (defaultConfig.contains(childPath) || !preservedCustomPaths.add(childPath)) {
+                continue;
+            }
+
+            appendConfigEntry(builder, currentConfig, childPath, childKey, indent);
+            Bukkit.getLogger().log(Level.INFO, "[nonchat] Preserved custom configuration key: {0}", childPath);
+        }
+    }
+
+    /**
+     * Appends a config value or section as YAML using the requested indentation.
+     */
+    private void appendConfigEntry(StringBuilder builder,
+                                   FileConfiguration sourceConfig,
+                                   String path,
+                                   String key,
+                                   int indent) {
+        appendIndent(builder, indent);
+        builder.append(key).append(":");
+
+        if (sourceConfig.isConfigurationSection(path)) {
+            ConfigurationSection section = sourceConfig.getConfigurationSection(path);
+            if (section == null || section.getKeys(false).isEmpty()) {
+                builder.append(" {}\n");
+                return;
+            }
+
+            builder.append("\n");
+            for (String childKey : section.getKeys(false)) {
+                appendConfigEntry(builder, sourceConfig, path + "." + childKey, childKey, indent + 2);
+            }
+            return;
+        }
+
+        Object value = sourceConfig.get(path);
+        if (value instanceof List<?> list) {
+            if (list.isEmpty()) {
+                builder.append(" []\n");
+                return;
+            }
+
+            builder.append("\n");
+            for (Object listItem : list) {
+                appendIndent(builder, indent + 2);
+                builder.append("- ").append(formatYamlValue(listItem)).append("\n");
+            }
+            return;
+        }
+
+        builder.append(" ").append(formatYamlValue(value)).append("\n");
+    }
+
+    private String buildConfigPath(HashMap<Integer, String> headers, int point, String identifier) {
+        StringBuilder path = new StringBuilder();
+        for (int i = 0; i <= point - 1; i++) {
+            String header = headers.get(i);
+            if (header != null) path.append(header).append(".");
+        }
+        path.append(identifier);
+        return path.toString();
+    }
+
+    private int countLeadingSpaces(String line) {
+        int spaces = 0;
+        for (char c : line.toCharArray()) {
+            if (c == ' ') spaces++;
+            else break;
+        }
+        return spaces;
+    }
+
+    private void appendIndent(StringBuilder builder, int spaces) {
+        for (int i = 0; i < spaces; i++) {
+            builder.append(" ");
+        }
+    }
+
+    private String formatYamlValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+
+        if (value instanceof Number || value instanceof Boolean) {
+            return value.toString();
+        }
+
+        String stringValue = String.valueOf(value)
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t");
+        return "\"" + stringValue + "\"";
     }
 
     /**
@@ -1849,6 +1983,11 @@ public class PluginConfig {
     private boolean isListContent(String s) {
         return s.replace(" ", "").startsWith("-");
     }
+
+    /**
+     * Represents an opened YAML section while rebuilding config.yml.
+     */
+    private record SectionFrame(String path, int indent) {}
 
     /**
      * Inner class to represent a line in the configuration file
