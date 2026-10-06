@@ -157,6 +157,7 @@ public class MessageManager {
 
         MessageUtil.send(sender, senderMessage);
         MessageUtil.send(receiver, receiverMessage);
+        playPrivateMessageSound(receiver);
 
         if (playerSender != null) {
             spyCommand.onPrivateMessage(playerSender, receiver, Component.text(processedMessage));
@@ -242,6 +243,19 @@ public class MessageManager {
 
     private boolean handleBlockedWords(Player player, String message) {
         return wordBlocker.checkAndHandle(player, message);
+    }
+
+    private void playPrivateMessageSound(Player receiver) {
+        if (!config.isPrivateMessageSoundEnabled()) {
+            return;
+        }
+
+        try {
+            receiver.playSound(receiver.getLocation(), config.getPrivateMessageSound(),
+                    config.getPrivateMessageSoundVolume(), config.getPrivateMessageSoundPitch());
+        } catch (Exception e) {
+            plugin.logError("Error playing private message sound: " + e.getMessage());
+        }
     }
 
     /**

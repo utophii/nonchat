@@ -100,6 +100,7 @@ public class BroadcastManager {
                     formatted = LinkDetector.makeLinksClickable(parsedMessage);
                 }
                 MessageUtil.send(player, formatted);
+                playBroadcastSound(player);
             }
 
             // Console log using the raw message (no player context for PAPI)
@@ -116,7 +117,21 @@ public class BroadcastManager {
                 }
                 String parsedMessage = IntegrationUtil.processPlaceholders(player, message);
                 MessageUtil.send(player, ColorUtil.parseComponent(parsedMessage));
+                playBroadcastSound(player);
             }
+        }
+    }
+
+    private void playBroadcastSound(Player player) {
+        if (!config.isBroadcastSoundEnabled()) {
+            return;
+        }
+
+        try {
+            player.playSound(player.getLocation(), config.getBroadcastSound(),
+                    config.getBroadcastSoundVolume(), config.getBroadcastSoundPitch());
+        } catch (Exception e) {
+            plugin.logError("Error playing broadcast sound: " + e.getMessage());
         }
     }
 

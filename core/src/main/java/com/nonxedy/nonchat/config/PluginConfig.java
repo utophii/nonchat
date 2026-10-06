@@ -150,6 +150,9 @@ public class PluginConfig {
         ));
         config.set("private-chat.click-actions.enabled", true);
         config.set("private-chat.click-actions.reply-command", "/msg {sender} ");
+        config.set("private-chat.sound", "");
+        config.set("private-chat.sound-volume", 1.0);
+        config.set("private-chat.sound-pitch", 1.0);
         config.set("private-chat.world-separation.enabled", false);
         config.set("private-chat.world-separation.groups.main", Arrays.asList(
             "world",
@@ -158,6 +161,12 @@ public class PluginConfig {
         ));
         config.set("spy-format", "§f{sender} §7-> §f{target}§7: §7{message}");
         
+        // Mention sound settings
+        config.set("mention-sounds.enabled", true);
+        config.set("mention-sounds.sound", "entity.experience_orb.pickup");
+        config.set("mention-sounds.volume", 1.0);
+        config.set("mention-sounds.pitch", 1.0);
+
         // Chat bubbles configuration
         config.set("chat-bubbles.enabled", true);
         config.set("chat-bubbles.duration", 5);
@@ -211,6 +220,9 @@ public class PluginConfig {
         // Broadcast settings
         config.set("broadcast.format", "\n§#FFAFFBBroadcast: §f{message}\n");
         config.set("broadcast.random", true);
+        config.set("broadcast.sound", "");
+        config.set("broadcast.sound-volume", 1.0);
+        config.set("broadcast.sound-pitch", 1.0);
         config.set("broadcast.example.enabled", true);
         config.set("broadcast.example.message", "This message will be sent every 60 seconds");
         config.set("broadcast.example.interval", 60);
@@ -574,7 +586,7 @@ public class PluginConfig {
      * @return true if mention sounds are enabled
      */
     public boolean isMentionSoundEnabled() {
-        return config.getBoolean("mention-sounds.enabled", true);
+        return config.getBoolean("mention-sounds.enabled", true) && !getMentionSound().isEmpty();
     }
 
     /**
@@ -583,7 +595,8 @@ public class PluginConfig {
      */
     @NotNull
     public String getMentionSound() {
-        return config.getString("mention-sounds.sound", "entity.experience_orb.pickup");
+        String sound = config.getString("mention-sounds.sound", "entity.experience_orb.pickup");
+        return sound == null ? "" : sound.trim();
     }
 
     /**
@@ -734,6 +747,40 @@ public class PluginConfig {
     }
 
     /**
+     * Checks if private message sounds are enabled
+     * @return true if private message sound is configured
+     */
+    public boolean isPrivateMessageSoundEnabled() {
+        return !getPrivateMessageSound().isEmpty();
+    }
+
+    /**
+     * Gets private message sound name
+     * @return Private message sound name
+     */
+    @NotNull
+    public String getPrivateMessageSound() {
+        String sound = config.getString("private-chat.sound", "");
+        return sound == null ? "" : sound.trim();
+    }
+
+    /**
+     * Gets private message sound volume
+     * @return Private message sound volume (0.0 to 1.0)
+     */
+    public float getPrivateMessageSoundVolume() {
+        return (float) config.getDouble("private-chat.sound-volume", 1.0);
+    }
+
+    /**
+     * Gets private message sound pitch
+     * @return Private message sound pitch (0.5 to 2.0)
+     */
+    public float getPrivateMessageSoundPitch() {
+        return (float) config.getDouble("private-chat.sound-pitch", 1.0);
+    }
+
+    /**
      * Checks whether private messages are restricted to configured world groups
      *
      * @return true when world separation is enabled
@@ -833,6 +880,40 @@ public class PluginConfig {
      */
     public boolean isRandomBroadcastEnabled() {
         return config.getBoolean("broadcast.random", false);
+    }
+
+    /**
+     * Checks if broadcast sounds are enabled
+     * @return true if broadcast sound is configured
+     */
+    public boolean isBroadcastSoundEnabled() {
+        return !getBroadcastSound().isEmpty();
+    }
+
+    /**
+     * Gets broadcast sound name
+     * @return Broadcast sound name
+     */
+    @NotNull
+    public String getBroadcastSound() {
+        String sound = config.getString("broadcast.sound", "");
+        return sound == null ? "" : sound.trim();
+    }
+
+    /**
+     * Gets broadcast sound volume
+     * @return Broadcast sound volume (0.0 to 1.0)
+     */
+    public float getBroadcastSoundVolume() {
+        return (float) config.getDouble("broadcast.sound-volume", 1.0);
+    }
+
+    /**
+     * Gets broadcast sound pitch
+     * @return Broadcast sound pitch (0.5 to 2.0)
+     */
+    public float getBroadcastSoundPitch() {
+        return (float) config.getDouble("broadcast.sound-pitch", 1.0);
     }
 
     /**

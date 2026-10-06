@@ -152,7 +152,7 @@ interactive-placeholders:
 mention-sounds:
   # Enable/disable sound when player is mentioned.
   enabled: true
-  # Sound to play when player is mentioned (Minecraft sound names).
+  # Sound to play when player is mentioned. Leave empty to disable.
   sound: "entity.experience_orb.pickup"
   # Volume of the mention sound (0.0 to 1.0).
   volume: 1.0
@@ -321,6 +321,13 @@ private-chat:
     # Command executed when clicking to reply. Use {sender} as a placeholder.
     reply-command: "/msg {sender} "
 
+  # Sound to play when a private message is received. Leave empty to disable.
+  sound: ""
+  # Volume of the private message sound (0.0 to 1.0).
+  sound-volume: 1.0
+  # Pitch of the private message sound (0.5 to 2.0).
+  sound-pitch: 1.0
+
   # Optionally restrict private messages and their player tab-completions by world.
   world-separation:
     enabled: false
@@ -349,6 +356,12 @@ broadcast:
   format: "\n§#FFAFFBBroadcast: §f{message}\n"
   # Enable/disable randomization of auto-broadcast messages.
   random: true
+  # Sound to play when a broadcast is received. Leave empty to disable.
+  sound: ""
+  # Volume of the broadcast sound (0.0 to 1.0).
+  sound-volume: 1.0
+  # Pitch of the broadcast sound (0.5 to 2.0).
+  sound-pitch: 1.0
 
   # Example auto-broadcast message. You can add more by copying this section.
   example:

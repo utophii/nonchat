@@ -137,6 +137,7 @@ public class BroadcastCommand implements CommandExecutor, TabCompleter {
                     continue;
                 }
                 MessageUtil.send(player, broadcastComponent);
+                playBroadcastSound(player);
             }
 
             // Send to server console
@@ -144,6 +145,19 @@ public class BroadcastCommand implements CommandExecutor, TabCompleter {
             plugin.logResponse("Broadcast sent successfully");
         } catch (Exception e) {
             plugin.logError("Failed to send broadcast: " + e.getMessage());
+        }
+    }
+
+    private void playBroadcastSound(Player player) {
+        if (!config.isBroadcastSoundEnabled()) {
+            return;
+        }
+
+        try {
+            player.playSound(player.getLocation(), config.getBroadcastSound(),
+                    config.getBroadcastSoundVolume(), config.getBroadcastSoundPitch());
+        } catch (Exception e) {
+            plugin.logError("Error playing broadcast sound: " + e.getMessage());
         }
     }
 
