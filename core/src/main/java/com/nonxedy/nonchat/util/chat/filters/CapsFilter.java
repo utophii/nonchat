@@ -5,7 +5,6 @@ import java.util.function.Predicate;
 import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -13,11 +12,46 @@ import lombok.Data;
  * Controls and processes uppercase character usage
  */
 @Data
-@AllArgsConstructor
-public class CapsFilter {
+public class CapsFilter implements com.nonxedy.nonchat.api.MessageFilter {
     private final boolean enabled;
     private final int maxCapsPercentage;
     private final int minLength;
+    private final com.nonxedy.nonchat.config.PluginConfig config;
+
+    public CapsFilter(boolean enabled, int maxCapsPercentage, int minLength) {
+        this(enabled, maxCapsPercentage, minLength, null);
+    }
+
+    public CapsFilter(boolean enabled, int maxCapsPercentage, int minLength,
+            com.nonxedy.nonchat.config.PluginConfig config) {
+        this.enabled = enabled;
+        this.maxCapsPercentage = maxCapsPercentage;
+        this.minLength = minLength;
+        this.config = config;
+    }
+
+    @Override
+    public boolean shouldFilter(org.bukkit.entity.Player player, String message) {
+        if (config == null) {
+            return player != null && !player.hasPermission("nonchat.caps.bypass") && shouldFilter(message);
+        }
+        return checkAndHandle(player, message, config, config.getPlugin().getConfigService().getMessages());
+    }
+
+
+    /** Checks and handles a caps violation with the same response policy as other filters. */
+    public boolean checkAndHandle(org.bukkit.entity.Player player, String message,
+            com.nonxedy.nonchat.config.PluginConfig config,
+            com.nonxedy.nonchat.config.PluginMessages messages) {
+        if (player == null || player.hasPermission("nonchat.caps.bypass") || !shouldFilter(message)) return false;
+        FilterSettings settings = FilterSettings.read(config.getConfig(), "caps-filter",
+                java.util.List.of("block"), messages.getString("caps-filter"),
+                "&c{player} used excessive caps: {message}", false, "nonchat.caps.notify");
+        String warning = settings.message() == null ? "" : settings.message()
+                .replace("{percentage}", String.valueOf(maxCapsPercentage));
+        return FilterActionHandler.handle(config, player, message, new FilterSettings(
+                settings.actions(), warning, settings.notifyMessage(), settings.consoleNotify(), settings.permission()));
+    }
 
     /**
      * Determines if a message should be filtered for excessive caps

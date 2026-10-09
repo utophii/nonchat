@@ -28,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.util.chat.filters.CapsFilter;
+import com.nonxedy.nonchat.util.chat.filters.FilterConfigMigration;
 import com.nonxedy.nonchat.util.chat.formatting.ChatTypeUtil;
 import com.nonxedy.nonchat.util.chat.formatting.HoverTextUtil;
 import com.nonxedy.nonchat.util.core.broadcast.BroadcastMessage;
@@ -97,7 +98,10 @@ public class PluginConfig {
             // Initialize new configuration object
             config = new YamlConfiguration();
             // Set default configuration values
-            setDefaultValues();
+            try (InputStream stream = plugin.getResource("config.yml")) {
+                if (stream == null) throw new IOException("Missing bundled config.yml");
+                config = YamlConfiguration.loadConfiguration(new InputStreamReader(stream, StandardCharsets.UTF_8));
+            }
             // Save the configuration to file
             saveConfig();
         } catch (IOException e) {
@@ -1317,7 +1321,8 @@ public class PluginConfig {
         return new CapsFilter(
             isCapsFilterEnabled(),
             getMaxCapsPercentage(),
-            getMinCapsLength()
+            getMinCapsLength(),
+            this
         );
     }
 
@@ -1743,7 +1748,7 @@ public class PluginConfig {
                 );
             }
 
-            boolean hasChanges = false;
+            boolean hasChanges = FilterConfigMigration.migrate(currentConfig);
             for (String key : defaultConfig.getKeys(true)) {
                 if (currentConfig.contains(key)) continue;
                 if (defaultConfig.isConfigurationSection(key)) continue;

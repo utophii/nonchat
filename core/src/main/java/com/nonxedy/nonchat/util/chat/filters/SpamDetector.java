@@ -3,9 +3,7 @@ package com.nonxedy.nonchat.util.chat.filters;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -16,10 +14,7 @@ import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.chat.filters.MessageHistory.MessageEntry;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
-import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
-import me.clip.placeholderapi.PlaceholderAPI;
-import net.kyori.adventure.text.Component;
 
 /**
  * Intelligent spam detection filter
@@ -55,7 +50,7 @@ public class SpamDetector implements MessageFilter {
     @Override
     public boolean shouldFilter(Player player, String message) {
         // Check if spam filter is enabled
-        if (!config.isAntiSpamEnabled()) {
+        if (player == null || message == null || !config.isAntiSpamEnabled()) {
             return false;
         }
 
@@ -77,8 +72,7 @@ public class SpamDetector implements MessageFilter {
             if (detectRepetitiveSpam(history, message)) {
                 // Add message to history for tracking, but block it
                 history.addMessage(message, currentTime);
-                handleSpamDetection(player, message, "repetitive");
-                return true;
+                return handleSpamDetection(player, message, "repetitive");
             }
         }
 
@@ -87,8 +81,7 @@ public class SpamDetector implements MessageFilter {
             if (detectSimilarSpam(history, message)) {
                 // Add message to history for tracking, but block it
                 history.addMessage(message, currentTime);
-                handleSpamDetection(player, message, "similar");
-                return true;
+                return handleSpamDetection(player, message, "similar");
             }
         }
 
@@ -97,8 +90,7 @@ public class SpamDetector implements MessageFilter {
             if (detectFlood(history)) {
                 // Add message to history for tracking, but block it
                 history.addMessage(message, currentTime);
-                handleSpamDetection(player, message, "flood");
-                return true;
+                return handleSpamDetection(player, message, "flood");
             }
         }
 
@@ -208,27 +200,12 @@ public class SpamDetector implements MessageFilter {
      * @param message The spam message
      * @param spamType Type of spam detected (repetitive, similar, flood)
      */
-    private void handleSpamDetection(Player player, String message, String spamType) {
-        List<String> actions = getActionsForSpamType(spamType);
-        String warnMessage = getMessageForSpamType(spamType);
-        
-        for (String action : actions) {
-            if (action.equalsIgnoreCase("block")) {
-                // Block is handled by returning true from shouldFilter
-                continue;
-            } else if (action.equalsIgnoreCase("notify-staff")) {
-                notifyStaff(player, message, spamType);
-            } else {
-                // Execute as command
-                executeCommand(player, action);
-            }
-        }
-        
-        // Send warning message to player if configured
-        if (warnMessage != null && !warnMessage.isEmpty()) {
-            String resolvedMessage = resolvePlaceholders(player, warnMessage);
-            MessageUtil.send(player, ColorUtil.parseComponentCached(resolvedMessage));
-        }
+    private boolean handleSpamDetection(Player player, String message, String spamType) {
+        return FilterActionHandler.handle(config, player, message,
+                FilterSettings.read(config.getConfig(), "anti-spam." + spamType,
+                        getActionsForSpamType(spamType), getMessageForSpamType(spamType),
+                        messages.getString("spam-detected-" + spamType),
+                        config.isAntiSpamConsoleNotifyEnabled(), "nonchat.spam.notify"));
     }
 
     /**
@@ -265,84 +242,6 @@ public class SpamDetector implements MessageFilter {
             default:
                 return "";
         }
-    }
-
-    /**
-     * Notifies staff members about spam detection
-     * @param player The player who sent spam
-     * @param message The spam message
-     * @param spamType Type of spam detected (repetitive, similar, flood)
-     */
-    private void notifyStaff(Player player, String message, String spamType) {
-        // Validate parameters
-        if (player == null || spamType == null) {
-            return;
-        }
-        
-        // Get the appropriate translation key based on spam type
-        String translationKey = "spam-detected-" + spamType;
-        String notificationTemplate = messages.getString(translationKey);
-        
-        if (notificationTemplate == null || notificationTemplate.isEmpty()) {
-            return;
-        }
-        
-        // Replace placeholders (handle null message)
-        String notification = notificationTemplate
-            .replace("{player}", player.getName())
-            .replace("{message}", message != null ? message : "[empty]");
-        
-        // Parse color codes and send to staff
-        Component notificationComponent = ColorUtil.parseComponentCached(notification);
-        
-        Bukkit.getOnlinePlayers().stream()
-            .filter(p -> p.hasPermission("nonchat.spam.notify") || p.isOp())
-            .forEach(p -> MessageUtil.send(p, notificationComponent));
-            
-        // Log to console if enabled
-        if (config.isAntiSpamConsoleNotifyEnabled()) {
-            MessageUtil.send(Bukkit.getConsoleSender(), notificationComponent);
-        }
-    }
-
-    /**
-     * Executes a command with placeholders resolved
-     * @param player The player to use for placeholders
-     * @param command The command to execute
-     */
-    private void executeCommand(Player player, String command) {
-        if (command == null || command.isEmpty()) {
-            return;
-        }
-        
-        String resolvedCommand = resolvePlaceholders(player, command);
-        try {
-            // Run command sync on main thread
-            Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("nonchat"), () -> {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolvedCommand);
-            });
-        } catch (IllegalArgumentException e) {
-            Bukkit.getLogger().log(Level.WARNING, "§#FFAFFB[nonchat] §cFailed to execute spam action command: {0}", e.getMessage());
-        }
-    }
-
-    /**
-     * Resolves placeholders in text using PlaceholderAPI or fallback
-     * @param player The player to use for placeholders
-     * @param text The text with placeholders
-     * @return Text with placeholders resolved
-     */
-    private String resolvePlaceholders(Player player, String text) {
-        if (player == null || text == null) return text;
-        
-        // Check if PlaceholderAPI is loaded
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            return PlaceholderAPI.setPlaceholders(player, text);
-        }
-        
-        // Fall back to standard placeholders if PAPI not available
-        return text.replace("%player_name%", player.getName())
-                  .replace("%player_uuid%", player.getUniqueId().toString());
     }
 
     /**

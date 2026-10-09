@@ -3,21 +3,16 @@ package com.nonxedy.nonchat.util.chat.filters;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Predicate;
-import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.api.MessageFilter;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
-import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
-import me.clip.placeholderapi.PlaceholderAPI;
-import net.kyori.adventure.text.Component;
 
 public class AdDetector implements MessageFilter {
     private static final String DOMAIN =
@@ -94,6 +89,8 @@ public class AdDetector implements MessageFilter {
             return false;
         }
 
+        if (player != null && !config.isAntiAdEnabled()) return false;
+
         String sanitized = MentionCompletionUtil.stripMentions(
                 ColorUtil.stripFormatting(message),
                 onlinePlayerPredicate);
@@ -105,8 +102,7 @@ public class AdDetector implements MessageFilter {
 
         // Explicit URLs are certain advertisements regardless of sensitivity.
         if (containsUnwhitelistedMatch(EXPLICIT_URL_PATTERN, sanitized, candidate -> true)) {
-            notifyStaff(player, message);
-            return true;
+            return handleDetection(player, message);
         }
 
         // Bare domains and IP addresses are less certain and therefore respect
@@ -117,15 +113,13 @@ public class AdDetector implements MessageFilter {
         if (sensitivity >= BARE_HOST_SENSITIVITY
                 && containsUnwhitelistedMatch(BARE_HOST_PATTERN, sanitized,
                         TldList::isPlausibleHost)) {
-            notifyStaff(player, message);
-            return true;
+            return handleDetection(player, message);
         }
 
         // Textual heuristics are the least certain detection mode and are only
         // enabled at higher sensitivity values.
         if (sensitivity >= COMMON_TERMS_SENSITIVITY && detectCommonAdTerms(sanitized)) {
-            notifyStaff(player, message);
-            return true;
+            return handleDetection(player, message);
         }
 
         return false;
@@ -294,56 +288,16 @@ public class AdDetector implements MessageFilter {
                     && PLAY_WORD_PATTERN.matcher(message).find());
     }
 
-    private String resolvePlaceholders(Player player, String text) {
-        if (player == null) return text;
-        
-        // Try PlaceholderAPI first if available
-        try {
-            Class.forName("me.clip.placeholderapi.PlaceholderAPI");
-            return PlaceholderAPI.setPlaceholders(player, text);
-        } catch (ClassNotFoundException e) {
-            // Fall back to standard placeholders if PAPI not available
-            return text.replace("%player_name%", player.getName())
-                      .replace("%player_uuid%", player.getUniqueId().toString());
-        }
-    }
-
-    private void notifyStaff(Player player, String message) {
-        if (staffNotify) {
-            String notification = notifyMessage;
-
-            // Resolve PlaceholderAPI placeholders on the template (e.g. %player_name%)
-            if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-                try {
-                    notification = PlaceholderAPI.setPlaceholders(player, notification);
-                } catch (Exception e) {
-                    Bukkit.getLogger().log(Level.WARNING, "&#FFAFFB[nonchat] &cError processing notify-message placeholders: {0}", e.getMessage());
-                }
-            }
-
-            // Insert the flagged message last, so user input never passes through placeholder parsing
-            notification = notification.replace("{message}", message);
-
-            Component notificationComponent = ColorUtil.parseComponentCached(notification);
-            Bukkit.getOnlinePlayers().stream()
-                .filter(p -> p.hasPermission("nonchat.ad.notify") || p.isOp())
-                .forEach(p -> MessageUtil.send(p, notificationComponent));
-
-            // Log to console
-            MessageUtil.send(Bukkit.getConsoleSender(), notificationComponent);
-        }
-        
-        // Execute configured punishment command with resolved placeholders
-        if (punishCommand != null && !punishCommand.isEmpty()) {
-            String resolvedCommand = resolvePlaceholders(player, punishCommand);
-            try {
-                // Run command sync on main thread
-                Bukkit.getScheduler().runTask(Bukkit.getPluginManager().getPlugin("nonchat"), () -> {
-                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), resolvedCommand);
-                });
-            } catch (IllegalArgumentException e) {
-                Bukkit.getLogger().log(Level.WARNING, "&#FFAFFB[nonchat] &cFailed to execute punish command: {0}", e.getMessage());
-            }
-        }
+    private boolean handleDetection(Player player, String message) {
+        // Matcher-only callers (including tests) do not execute server side effects.
+        if (player == null) return true;
+        java.util.ArrayList<String> defaults = new java.util.ArrayList<>(List.of("block"));
+        if (config.shouldNotifyStaffAboutAds()) defaults.add("notify-staff");
+        String command = config.getAntiAdPunishCommand();
+        if (command != null && !command.isBlank()) defaults.add(command);
+        return FilterActionHandler.handle(config, player, message,
+                FilterSettings.read(config.getConfig(), "anti-ad", defaults,
+                        config.getPlugin().getConfigService().getMessages().getString("blocked-words"),
+                        config.getAntiAdNotifyMessage(), config.shouldNotifyStaffAboutAds(), "nonchat.ad.notify"));
     }
 }

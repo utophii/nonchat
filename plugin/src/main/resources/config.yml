@@ -434,47 +434,44 @@ hover-text:
   click-command: "/m %player_name% "
 
 # ==================================================
-# BLOCKED WORDS FILTER
-# Blocks messages containing specific words and regex patterns.
+# CHAT FILTERS
+# Every filter (including each anti-spam detector) supports:
+#   enabled: enable detection
+#   message: player warning; "" disables, "@language" uses the language file
+#   notify-message: staff/console template; "" disables, "@language" uses the language file
+#   console-notify: log independently of notify-staff
+#   actions: block, notify-staff, or console commands (without /)
+# Without block, violations are reported but the message is allowed.
+# Templates: {player}, %player_name%, %player_uuid%, {message} / %message%, PlaceholderAPI.
+# Commands support player/PAPI placeholders, NOT raw message substitution.
+# Staff permissions: nonchat.wordblocker.notify, nonchat.caps.notify,
+# nonchat.ad.notify, nonchat.spam.notify. Operators also receive notifications.
 # ==================================================
-# Enable/disable the word blocking feature.
 banned-words:
   enabled: true
+  message: "&#ff0000You are not allowed to use this word!"
+  notify-message: "@language"
+  console-notify: true
+  actions:
+    - block
+    - notify-staff
 
-# List of banned words (simple text matching, case-insensitive).
+  # List of banned words (simple text matching, case-insensitive).
   words:
     - "spam"
     - "badword"
     - "anotherbadword"
     - "плохой"
 
-# List of regex patterns for advanced filtering (case-insensitive).
-# Examples:
-#   - '.*\btest\b.*' - matches any message containing the word "test"
-#   - '.*\d{4,}.*' - matches any message containing 4 or more consecutive digits
-#   - '.*http[s]?://.*' - matches URLs starting with http:// or https://
-#   - '.*\b(word1|word2|word3)\b.*' - matches any of the specified words
+  # List of regex patterns for advanced filtering (case-insensitive).
+  # Examples:
+  #   - '.*\btest\b.*' - matches any message containing the word "test"
+  #   - '.*\d{4,}.*' - matches any message containing 4 or more consecutive digits
+  #   - '.*http[s]?://.*' - matches URLs starting with http:// or https://
+  #   - '.*\b(word1|word2|word3)\b.*' - matches any of the specified words
   patterns:
     - '.*\btest\b.*'
     - '.*\d{4,}.*'
-
-  # Warning message sent to the player when their message is blocked.
-  # Supports color codes and PlaceholderAPI placeholders.
-  # Use %message% as placeholder for the blocked message. Set to "" to send no warning.
-  message: "&#ff0000You are not allowed to use this word!"
-
-  # Enable/disable console notifications when a banned word is detected.
-  # If true, detections will also be logged to the console.
-  # If false, only staff members with 'nonchat.wordblocker.notify' permission will see notifications.
-  console-notify: true
-
-  # Actions to execute when a banned word is detected.
-  # Special actions: 'block' (blocks the message), 'notify-staff' (notifies staff)
-  # Regular commands: Any command that will be executed from console (use %player_name% placeholder)
-  # Example: ["block", "notify-staff", "mute %player_name% 300"]
-  actions:
-    - block
-    - notify-staff
 
 # ==================================================
 # CAPS FILTER
@@ -483,6 +480,11 @@ banned-words:
 caps-filter:
   # Enable/disable the caps filter.
   enabled: true
+  message: "@language"
+  notify-message: "&c{player} used excessive caps: {message}"
+  console-notify: false
+  actions:
+    - block
   # Maximum percentage of capital letters allowed in a message.
   max-caps-percentage: 70
   # Minimum message length to check for caps.
@@ -495,6 +497,14 @@ caps-filter:
 anti-ad:
   # Enable/disable the anti-advertisement filter.
   enabled: true
+  message: "@language"
+  notify-message: '&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}'
+  console-notify: true
+  actions:
+    - block
+    - notify-staff
+    - "ban %player_name% advertising"
+
   # Detection sensitivity (0.0-1.0). Higher values may cause false positives.
   # 0.0-0.24: explicit URLs only; 0.25+: bare domains/IPs; 0.5+: common ad phrases.
   sensitivity: 0.7
@@ -513,13 +523,6 @@ anti-ad:
   # Source of the TLD registry. Any mirror of the official IANA
   # tlds-alpha-by-domain.txt file works (for example, your own CDN copy).
   tld-list-url: "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
-  # Notify staff when an advertisement is detected (requires 'nonchat.ad.notify' permission).
-  staff-notify: true
-  # Message sent to staff and console when an advertisement is detected.
-  # {message} - the flagged message
-  notify-message: '&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}'
-  # Command to execute when an advertisement is detected. Leave empty for no punishment.
-  punish-command: "ban %player_name% advertising"
 
 # ==================================================
 # ANTI-SPAM SYSTEM
@@ -527,82 +530,43 @@ anti-ad:
 # Detects repetitive messages, similar messages, and message flooding.
 # ==================================================
 anti-spam:
-  # Enable/disable the anti-spam filter.
   enabled: true
-  
-  # Enable/disable console notifications when spam is detected.
-  # If true, spam notifications will be logged to the console.
-  # If false, only staff members with 'nonchat.spam.notify' permission will see notifications.
-  console-notify: true
-  
-  # ==================================================
-  # REPETITIVE MESSAGE DETECTION
-  # Detects when a player sends the exact same message multiple times.
-  # ==================================================
+
+  # Exact duplicate messages.
   repetitive:
-    # Enable/disable repetitive message detection.
     enabled: true
-    # Maximum number of identical messages allowed within the time window.
-    threshold: 3
-    # Time window in seconds to check for repetitive messages.
-    time-window: 10
-    # Warning message sent to the player when repetitive spam is detected.
-    # Supports color codes and PlaceholderAPI placeholders.
-    # Use %player_name% as placeholder for the player's name.
     message: "&cPlease do not send the same message repeatedly!"
-    # Actions to execute when repetitive spam is detected.
-    # Special actions: 'block' (blocks the message), 'notify-staff' (notifies staff)
-    # Regular commands: Any command that will be executed (use %player_name% placeholder)
-    # Example: ["block", "tell %player_name% Stop spamming!", "notify-staff"]
+    notify-message: "@language"
+    console-notify: true
     actions:
       - block
       - notify-staff
-  
-  # ==================================================
-  # SIMILAR MESSAGE DETECTION
-  # Detects when a player sends similar messages (variations of the same content).
-  # Uses text similarity algorithms to catch spam attempts with slight modifications.
-  # ==================================================
+    # Maximum identical messages within the window (seconds).
+    threshold: 3
+    time-window: 10
+
+  # Similar messages, ignoring mentions and formatting.
   similar:
-    # Enable/disable similar message detection.
     enabled: true
-    # Similarity threshold (0.0-1.0). Higher values (closer to 1.0) require more similarity.
-    # Recommended: 0.80-0.90 for strict detection, 0.70-0.80 for moderate detection.
-    threshold: 0.85
-    # Time window in seconds to check for similar messages.
-    time-window: 30
-    # Warning message sent to the player when similar spam is detected.
-    # Supports color codes and PlaceholderAPI placeholders.
-    # Use %player_name% as placeholder for the player's name.
     message: "&cPlease do not send similar messages repeatedly!"
-    # Actions to execute when similar spam is detected.
-    # Special actions: 'block' (blocks the message), 'notify-staff' (notifies staff)
-    # Regular commands: Any command that will be executed (use %player_name% placeholder)
-    # Example: ["block", "tell %player_name% Stop spamming!", "mute %player_name% 60"]
+    notify-message: "@language"
+    console-notify: true
     actions:
       - block
       - notify-staff
-  
-  # ==================================================
-  # FLOOD DETECTION
-  # Detects when a player sends too many messages in a short time period.
-  # ==================================================
+    # Similarity from 0.0 to 1.0; higher values require a closer match.
+    threshold: 0.85
+    time-window: 30
+
+  # Too many messages within a short time window.
   flood:
-    # Enable/disable flood detection.
     enabled: true
-    # Maximum number of messages allowed within the time window.
-    max-messages: 5
-    # Time window in seconds to check for message flooding.
-    time-window: 5
-    # Warning message sent to the player when flood spam is detected.
-    # Supports color codes and PlaceholderAPI placeholders.
-    # Use %player_name% as placeholder for the player's name.
     message: "&cYou are sending messages too quickly! Please slow down."
-    # Actions to execute when flood spam is detected.
-    # Special actions: 'block' (blocks the message), 'notify-staff' (notifies staff)
-    # Regular commands: Any command that will be executed (use %player_name% placeholder)
-    # Example: ["block", "tell %player_name% Slow down!", "mute %player_name% 30", "notify-staff"]
+    notify-message: "@language"
+    console-notify: true
     actions:
       - block
       - notify-staff
-      - "tell %player_name% Slow down!" # Custom commands
+      - "tell %player_name% Slow down!"
+    max-messages: 5
+    time-window: 5

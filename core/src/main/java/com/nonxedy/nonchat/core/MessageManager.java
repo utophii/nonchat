@@ -217,9 +217,7 @@ public class MessageManager {
 
         // Check caps filter
         CapsFilter capsFilter = config.getCapsFilter();
-        if (!player.hasPermission("nonchat.caps.bypass") && capsFilter.shouldFilter(message)) {
-            MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("caps-filter")
-                    .replace("{percentage}", String.valueOf(capsFilter.getMaxCapsPercentage()))));
+        if (capsFilter.shouldFilter(player, message)) {
             return false;
         }
 
@@ -233,7 +231,6 @@ public class MessageManager {
         // Check advertisements
         if (config.isAntiAdEnabled() && !player.hasPermission("nonchat.ad.bypass")) {
             if (adDetector.shouldFilter(player, message)) {
-                MessageUtil.send(player, ColorUtil.parseComponentCached(messages.getString("blocked-words")));
                 return false;
             }
         }

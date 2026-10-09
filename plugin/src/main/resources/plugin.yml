@@ -46,6 +46,7 @@ permissions:
       - nonchat.ad.bypass
       - nonchat.ad.notify
       - nonchat.wordblocker.notify
+      - nonchat.caps.notify
   nonchat.message:
     description: Allows /message command
     default: true
@@ -114,6 +115,9 @@ permissions:
     default: op
   nonchat.spam.notify:
     description: Notify players about spam detection
+    default: op
+  nonchat.caps.notify:
+    description: Notify players about excessive capitalization
     default: op
   nonchat.wordblocker.notify:
     description: Notify players about banned words detection
