@@ -23,7 +23,7 @@ mentioned: "&#ffffff¡Fuiste mencionado en el chat por &#84FFB8{player}!"
 player-not-found: "&#ff0000Jugador no encontrado."
 command-disabled: "&#ff0000Este comando está deshabilitado."
 caps-filter: "&#ff0000¡Demasiadas letras mayúsculas! Máximo permitido: {percentage}%"
-message-not-delivered: "&#ff0000Tu mensaje no pudo ser entregado."
+message-not-delivered: "&#ff0000Nadie vio tu mensaje."
 
 # Recargar.
 reloading: "&#FFAFFBRecargando..."

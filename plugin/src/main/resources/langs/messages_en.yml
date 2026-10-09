@@ -21,7 +21,7 @@ mentioned: "&#ffffffYou were mentioned in chat by &#84FFB8{player}!"
 player-not-found: "&#ff0000Player not found."
 command-disabled: "&#ff0000This command is disabled."
 caps-filter: "&#ff0000Too many capital letters! Maximum allowed: {percentage}%"
-message-not-delivered: "&#ff0000Your message was not delivered."
+message-not-delivered: "&#ff0000No one saw your message."
 
 # Reload.
 reloading: "&#FFAFFBReloading..."

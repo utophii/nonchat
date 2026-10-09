@@ -21,7 +21,7 @@ mentioned: "&#ffffffВы были упомянуты игроком &#84FFB8{pla
 player-not-found: "&#ff0000Игрок не найден."
 command-disabled: "&#ff0000Эта команда отключена."
 caps-filter: "&#ff0000Слишком много заглавных букв! Максимально разрешено: {percentage}%"
-message-not-delivered: "&#ff0000Ваше сообщение не было доставлено."
+message-not-delivered: "&#ff0000Ваше сообщение никто не увидел."
 
 # Reload.
 reloading: "&#FFAFFBПерезагрузка..."
