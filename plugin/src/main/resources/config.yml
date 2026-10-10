@@ -180,6 +180,25 @@ mentions:
   enabled: true
   # If true, typing an online player's name mentions them even without '@'.
   allow-without-at: false
+  # Notification shown to the mentioned player, written as "<type>:<text>":
+  #   message:<text>   - a regular chat message
+  #   actionbar:<text> - text above the hotbar
+  #   title:<text>     - a title on screen ("titlebar" works too)
+  #   bossbar:<text>   - a boss bar at the top of the screen
+  # Leave it empty ("") or set it to "none" to show nothing at all. Any other
+  # value without one of the four types above is ignored with a console warning.
+  # The sound from 'mention-sounds' is independent and keeps playing even when
+  # this value is empty.
+  #
+  # Options are appended to the text with a "|" separator:
+  #   title:&#84FFB8You were mentioned!|subtitle:&#ffffffby {player}|fadein:10|stay:70|fadeout:20
+  #   bossbar:&#84FFB8{player} mentioned you|color:pink|overlay:progress|progress:1.0|duration:5
+  #   actionbar:&#84FFB8{player} mentioned you!
+  # Title options: subtitle, fadein, stay and fadeout (all in ticks).
+  # Boss bar options: color (pink, blue, red, green, yellow, purple, white),
+  #   overlay (progress, notched_6, notched_10, notched_12, notched_20),
+  #   progress (0.0 - 1.0) and duration (seconds the bar stays visible).
+  mention-message: "message:&#ffffffYou were mentioned in chat by &#84FFB8%player_name%!"
 
 # ==================================================
 # CUSTOM CHANNELS

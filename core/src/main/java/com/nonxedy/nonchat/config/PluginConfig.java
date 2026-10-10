@@ -41,6 +41,13 @@ import lombok.Getter;
  */
 @Getter
 public class PluginConfig {
+    /**
+     * Default mention notification: a plain chat message, matching the value shipped
+     * in {@code config.yml}.
+     */
+    public static final String DEFAULT_MENTION_MESSAGE =
+            "message:&#ffffffYou were mentioned in chat by &#84FFB8{player}!";
+
     // Plugin instance for resource access
     private final Nonchat plugin;
     // File object representing the config.yml file
@@ -661,6 +668,25 @@ public class PluginConfig {
      */
     public boolean isMentionWithoutAtEnabled() {
         return config.getBoolean("mentions.allow-without-at", false);
+    }
+
+    /**
+     * Gets the mention notification definition ({@code mentions.mention-message}).
+     *
+     * <p>The value is written as {@code <type>:<text>} where the type is one of
+     * {@code message}, {@code actionbar}, {@code title} or {@code bossbar}, for
+     * example {@code title:&#84FFB8You were mentioned!}. An empty value - or a value
+     * without one of those types - means the mentioned player is not notified at all
+     * (sounds are configured separately in {@code mention-sounds}). See
+     * {@link com.nonxedy.nonchat.util.special.mention.MentionNotification} for the
+     * full syntax, including per-type options.</p>
+     *
+     * @return raw notification definition, empty when notifications are disabled
+     */
+    @NotNull
+    public String getMentionMessage() {
+        String value = config.getString("mentions.mention-message", DEFAULT_MENTION_MESSAGE);
+        return value == null ? "" : value.trim();
     }
 
     /**

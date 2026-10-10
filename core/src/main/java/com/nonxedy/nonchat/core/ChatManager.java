@@ -29,6 +29,7 @@ import com.nonxedy.nonchat.util.chat.filters.SpamDetector;
 import com.nonxedy.nonchat.util.chat.filters.WordBlocker;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
+import com.nonxedy.nonchat.util.special.mention.MentionNotifier;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
@@ -47,6 +48,7 @@ public class ChatManager {
     private final AdDetector adDetector;
     private final SpamDetector spamDetector;
     private final WordBlocker wordBlocker;
+    private final MentionNotifier mentionNotifier;
 
     public ChatManager(Nonchat plugin, PluginConfig config, PluginMessages messages) {
         this.plugin = plugin;
@@ -55,6 +57,7 @@ public class ChatManager {
         this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
         this.spamDetector = new SpamDetector(config, messages);
         this.wordBlocker = new WordBlocker(config, messages);
+        this.mentionNotifier = new MentionNotifier(plugin, config);
         this.channelManager = new ChannelManager(plugin, config);
         this.ignoreCommand = plugin.getIgnoreCommand();
         startBubbleUpdater();
@@ -524,21 +527,9 @@ public class ChatManager {
     }
 
     private void notifyMentionedPlayer(Player mentioned, Player sender) {
-        String mentionMessage = messages.getString("mentioned");
-
-        // Apply PlaceholderAPI to mention message
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            try {
-                mentionMessage = PlaceholderAPI.setPlaceholders(sender, mentionMessage);
-            } catch (Exception e) {
-                plugin.logError("Error processing mention message placeholders: " + e.getMessage());
-            }
-        }
-
-        // Replace {player} with sender name (keeping this for backward compatibility)
-        mentionMessage = mentionMessage.replace("{player}", sender.getName());
-
-        MessageUtil.send(mentioned, ColorUtil.parseComponent(mentionMessage));
+        // Where and how the player is notified comes from mentions.mention-message
+        // (message, actionbar, title or bossbar); an empty value notifies nobody.
+        mentionNotifier.notifyMentioned(mentioned, sender);
 
         // Play mention sound if enabled for mention events
         if (config.isMentionSoundEnabled()) {
@@ -787,6 +778,7 @@ public class ChatManager {
     public void cleanupPlayer(Player player) {
         playerLocks.remove(player.getUniqueId());
         removeBubble(player);
+        mentionNotifier.clear(player);
     }
 
     /**
@@ -807,5 +799,6 @@ public class ChatManager {
         }
         bubbles.clear();
         playerLocks.clear();
+        mentionNotifier.shutdown();
     }
 }
