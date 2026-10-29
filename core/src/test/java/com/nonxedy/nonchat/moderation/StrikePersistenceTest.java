@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -14,9 +15,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 class StrikePersistenceTest {
@@ -103,5 +109,84 @@ class StrikePersistenceTest {
         assertTrue(manager.getStrikes(id).isEmpty());
         manager.close();
         assertTrue(manager(file, 3).getStrikes(id).isEmpty());
+    }
+
+    private static ExecutorService saverOf(SanctionsManager manager) throws ReflectiveOperationException {
+        Field saver = SanctionsManager.class.getDeclaredField("saver");
+        saver.setAccessible(true);
+        return (ExecutorService) saver.get(manager);
+    }
+
+    private static void block(ExecutorService saver, CountDownLatch release) {
+        saver.execute(() -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    private static void waitUntilClosing(Thread closing) {
+        while (closing.getState() != Thread.State.TIMED_WAITING && closing.getState() != Thread.State.TERMINATED) {
+            Thread.onSpinWait();
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    void closeWaitsForPendingSaves(@TempDir Path dir) throws Exception {
+        File file = dir.resolve("strikes.yml").toFile();
+        SanctionsManager manager = manager(file, 3);
+        ExecutorService saver = saverOf(manager);
+        CountDownLatch release = new CountDownLatch(1);
+        Thread closing = new Thread(manager::close);
+        try {
+            block(saver, release);
+            manager.process(player, "ONE");
+            manager.process(player, "TWO");
+
+            closing.start();
+            waitUntilClosing(closing);
+            assertEquals(Thread.State.TIMED_WAITING, closing.getState(), "close() must wait for the saver");
+        } finally {
+            release.countDown();
+            closing.join();
+        }
+
+        assertTrue(saver.isTerminated());
+        assertEquals(2, new StrikeStorage(file).load().get(id).size());
+    }
+
+    @Test
+    @Timeout(30)
+    void closeStillSavesWhenInterrupted(@TempDir Path dir) throws Exception {
+        File file = dir.resolve("strikes.yml").toFile();
+        SanctionsManager manager = manager(file, 3);
+        ExecutorService saver = saverOf(manager);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicBoolean stillInterrupted = new AtomicBoolean();
+        Thread closing = new Thread(() -> {
+            manager.close();
+            stillInterrupted.set(Thread.currentThread().isInterrupted());
+        });
+        try {
+            block(saver, release);
+            manager.process(player, "ONE");
+
+            closing.start();
+            waitUntilClosing(closing);
+            assertEquals(Thread.State.TIMED_WAITING, closing.getState(), "close() must wait for the saver");
+            closing.interrupt();
+        } finally {
+            release.countDown();
+            closing.join();
+        }
+
+        assertTrue(stillInterrupted.get(), "the interruption is not swallowed");
+        assertTrue(saver.awaitTermination(10, TimeUnit.SECONDS));
+        List<Strike> saved = new StrikeStorage(file).load().get(id);
+        assertEquals(1, saved.size());
+        assertEquals(ViolationType.CAPS, saved.get(0).type());
     }
 }

@@ -12,9 +12,12 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.entity.Player;
 
@@ -31,6 +34,9 @@ import com.nonxedy.nonchat.util.chat.filters.WordBlocker;
  * what happens, based on how many valid strikes the player has.
  */
 public class SanctionsManager {
+
+    private static final Logger LOGGER = Logger.getLogger("nonchat");
+    private static final long SAVE_TIMEOUT_SECONDS = 5;
 
     private final List<ViolationDetector> detectors;
     private final Function<ViolationType, ViolationRule> ruleProvider;
@@ -166,14 +172,34 @@ public class SanctionsManager {
     }
 
     /**
-     * Writes the strikes to disk and stops the background saver. Call when the plugin is disabled.
+     * Stops the background saver, waits for its pending saves and writes the strikes to disk.
+     * Call when the plugin is disabled.
+     * The wait is limited, so a stuck disk cannot hang the shutdown: when it runs out or the thread is
+     * interrupted, the pending saves are dropped and the strikes are still written once, but a save
+     * that is already running may finish after this method returns.
      */
     public void close() {
         if (storage == null) {
             return;
         }
         saver.shutdown();
-        storage.save(snapshot());
+        boolean interrupted = false;
+        try {
+            if (!saver.awaitTermination(SAVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                LOGGER.log(Level.WARNING, "[nonchat] Strike saver did not stop in {0}s, saving anyway",
+                        SAVE_TIMEOUT_SECONDS);
+                saver.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            LOGGER.warning("[nonchat] Interrupted while waiting for the strike saver, saving anyway");
+            saver.shutdownNow();
+            interrupted = true;
+        }
+        saveStrikes();
+        // Restored after saving: an interrupted thread would fail the file write
+        if (interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // Saves are coalesced: violations arriving while a save is queued are covered by that save
@@ -184,8 +210,15 @@ public class SanctionsManager {
         if (savePending.compareAndSet(false, true)) {
             saver.execute(() -> {
                 savePending.set(false);
-                storage.save(snapshot());
+                saveStrikes();
             });
+        }
+    }
+
+    // The snapshot is taken under the storage lock, so whoever writes last has the newest strikes
+    private void saveStrikes() {
+        synchronized (storage) {
+            storage.save(snapshot());
         }
     }
 
