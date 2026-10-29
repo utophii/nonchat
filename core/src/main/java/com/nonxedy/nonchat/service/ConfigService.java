@@ -32,9 +32,10 @@ public class ConfigService implements IConfigurable {
 
     @Override
     public void load() {
-        config.loadConfig();
         messages.loadLanguage();
+        // Migrates the old sections out of config.yml, so it has to be read afterwards
         moderation.load();
+        config.loadConfig();
     }
 
     @Override
@@ -45,9 +46,9 @@ public class ConfigService implements IConfigurable {
     @Override
     public void reload() {
         //plugin.reloadConfig();
-        config.reloadConfig();
         messages.reloadConfig();
         moderation.reload();
+        config.reloadConfig();
     }
 
     public PluginConfig getConfig() {
