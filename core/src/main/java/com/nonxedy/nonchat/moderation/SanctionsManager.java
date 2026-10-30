@@ -147,7 +147,15 @@ public class SanctionsManager {
      * Removes every strike of a player
      */
     public void clearStrikes(UUID playerId) {
-        strikes.remove(playerId);
+        List<Strike> list = strikes.get(playerId);
+        if (list != null) {
+            synchronized (list) {
+                // Emptied too: a snapshot that already holds this list must not copy the cleared strikes
+                if (strikes.remove(playerId, list)) {
+                    list.clear();
+                }
+            }
+        }
         saveAsync();
     }
 
@@ -166,6 +174,9 @@ public class SanctionsManager {
         synchronized (list) {
             removed = (int) list.stream().filter(s -> s.type() == type && !s.isExpired(now)).count();
             list.removeIf(s -> s.type() == type);
+            if (list.isEmpty()) {
+                strikes.remove(playerId, list);
+            }
         }
         saveAsync();
         return removed;
@@ -281,17 +292,23 @@ public class SanctionsManager {
                 .max(Comparator.naturalOrder())
                 .orElse(Duration.ZERO);
 
-        List<Strike> list = strikes.computeIfAbsent(violation.playerId(), id -> new ArrayList<>());
-        synchronized (list) {
-            list.removeIf(s -> s.isExpired(now));
-            list.add(new Strike(violation.playerId(), violation.type(), now, now.plus(longestExpire)));
+        while (true) {
+            List<Strike> list = strikes.computeIfAbsent(violation.playerId(), id -> new ArrayList<>());
+            synchronized (list) {
+                // A clear may have removed this list from the map after we got it; the strike would be lost
+                if (strikes.get(violation.playerId()) != list) {
+                    continue;
+                }
+                list.removeIf(s -> s.isExpired(now));
+                list.add(new Strike(violation.playerId(), violation.type(), now, now.plus(longestExpire)));
 
-            // TODO: decide whether a fired tier should consume its strikes; for now it fires on every violation
-            return rule.tiers().stream()
-                    .sorted(Comparator.comparingInt(SanctionTier::strikesRequired).reversed())
-                    .filter(tier -> countStrikes(list, violation.type(), now.minus(tier.expire())) >= tier.strikesRequired())
-                    .findFirst()
-                    .orElse(null);
+                // TODO: decide whether a fired tier should consume its strikes; for now it fires on every violation
+                return rule.tiers().stream()
+                        .sorted(Comparator.comparingInt(SanctionTier::strikesRequired).reversed())
+                        .filter(tier -> countStrikes(list, violation.type(), now.minus(tier.expire())) >= tier.strikesRequired())
+                        .findFirst()
+                        .orElse(null);
+            }
         }
     }
 
