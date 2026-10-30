@@ -1,0 +1,177 @@
+# ==================================================
+# CHAT MODERATION
+# Every violation warns the player and blocks the message, unless the rule has 'block: false'.
+# On top of that, each kind of violation has sanction tiers: when a player collects 'strikes'
+# violations of that kind within 'expire', the tier's 'actions' run. Only the heaviest tier the player qualifies for runs.
+#
+# Tier format:
+#   - strikes: 3          # violations needed
+#     expire: 1h          # how long a violation counts (number + s/m/h/d)
+#     actions: [...]      # 'notify-staff', or any console command (%player_name% is replaced)
+#                         # 'warn' is implied and can be omitted
+# Example: warn at 1 strike, kick at 3, ban at 5:
+#   tiers:
+#     - { strikes: 1, expire: 10m, actions: [warn] }
+#     - { strikes: 3, expire: 1h, actions: ["kick %player_name%"] }
+#     - { strikes: 5, expire: 24h, actions: ["ban %player_name%"] }
+# ==================================================
+
+# ==================================================
+# BANNED WORDS
+# Blocks messages containing specific words or regex patterns.
+# ==================================================
+banned-words:
+  enabled: true
+  # false: the violation is only reported (warning, strike, tiers) and the message is sent.
+  block: true
+  # Simple text matching, case-insensitive.
+  words:
+    - "spam"
+    - "badword"
+    - "anotherbadword"
+    - "плохой"
+  # If true, banned words match only as whole words ("ass" won't match "class").
+  # If false, they match anywhere inside a word.
+  whole-words: false
+  # Words that are allowed even though they contain a banned word, e.g. "class" for "ass".
+  # Matched as substrings, case-insensitive. Applies to 'words' only, not to 'patterns'.
+  exceptions: []
+  # Regex patterns, case-insensitive.
+  # Examples:
+  #   - '.*\bword\b.*' - matches any message containing the word "word"
+  #   - '.*\d{4,}.*' - matches any message containing 4 or more consecutive digits
+  patterns:
+    - '.*\btest\b.*'
+    - '.*\d{4,}.*'
+  # Warning sent to the player. %message% is the blocked message. "" sends no warning.
+  message: "&#ff0000You are not allowed to use this word!"
+  # Text of the 'notify-staff' action ({message} is replaced).
+  # Staff need 'nonchat.wordblocker.notify' (OPs always receive it).
+  notify-message: "&#FFAFFB[nonchat] &f%player_name% sent banned words: &#ff0000{message}"
+  # Also log 'notify-staff' to the console.
+  console-notify: true
+  tiers:
+    - strikes: 1
+      expire: 30m
+      actions:
+        - notify-staff
+
+# ==================================================
+# CAPS
+# Limits the use of excessive capital letters.
+# ==================================================
+caps:
+  enabled: true
+  # false: the violation is only reported (warning, strike, tiers) and the message is sent.
+  block: true
+  # Maximum percentage of capital letters allowed in a message.
+  max-caps-percentage: 70
+  # Minimum message length to check.
+  min-length: 4
+  # Warning sent to the player. {percentage} is the maximum allowed.
+  message: "&#ff0000Too many capital letters! Maximum allowed: {percentage}%"
+  # Text of the 'notify-staff' action ({message} is replaced).
+  # Staff need 'nonchat.caps.notify' (OPs always receive it).
+  notify-message: "&c%player_name% used excessive caps: {message}"
+  console-notify: false
+  tiers:
+    - strikes: 1
+      expire: 30m
+      actions: []
+
+# ==================================================
+# ADVERTISING
+# Blocks server advertisements in chat.
+# ==================================================
+advertising:
+  enabled: true
+  # false: the violation is only reported (warning, strike, tiers) and the message is sent.
+  block: true
+  # Detection sensitivity (0.0-1.0). Higher values may cause false positives.
+  # 0.0-0.24: explicit URLs only; 0.25+: bare domains/IPs; 0.5+: common ad phrases.
+  sensitivity: 0.7
+  # URL/domain rules that will not be blocked.
+  # A bare domain whitelists itself and all subdomains (example.com also allows mc.example.com).
+  # Use *.example.com to whitelist subdomains only.
+  # URL rules with a path remain limited to that exact URL, as in this Discord invite example.
+  whitelisted-urls:
+    - "discord.gg/NAWsxe3J3R"
+  # Refresh the TLD registry from the network on startup and on /nonchat reload
+  # (asynchronously, chat is never blocked). Until the download succeeds - or when it
+  # fails - the registry snapshot bundled in the jar is used, so the filter works offline.
+  update-tld-list: true
+  # Source of the TLD registry. Any mirror of the official IANA tlds-alpha-by-domain.txt works.
+  tld-list-url: "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
+  # Warning sent to the player.
+  message: "&#ff0000You are not allowed to use this word!"
+  # Text of the 'notify-staff' action ({message} is the flagged message).
+  # Staff need 'nonchat.ad.notify' (OPs always receive it).
+  notify-message: "&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}"
+  # Also log 'notify-staff' to the console.
+  console-notify: true
+  tiers:
+    - strikes: 1
+      expire: 30m
+      actions:
+        - notify-staff
+        - "ban %player_name% advertising"
+
+# ==================================================
+# SPAM
+# Detects repetitive messages, similar messages and message flooding.
+# Each kind has its own 'tiers'.
+# ==================================================
+spam:
+  enabled: true
+  # Staff need 'nonchat.spam.notify' to receive 'notify-staff' (OPs always do).
+
+  # The exact same message sent several times.
+  repetitive:
+    enabled: true
+    # false: the violation is only reported (warning, strike, tiers) and the message is sent.
+    block: true
+    # Maximum number of identical messages allowed within the time window.
+    threshold: 3
+    # Time window in seconds.
+    time-window: 10
+    message: "&cPlease do not send the same message repeatedly!"
+    notify-message: "&#FFAFFB[nonchat] &f%player_name% detected repetitive spam: &#ff0000{message}"
+    console-notify: true
+    tiers:
+      - strikes: 1
+        expire: 30m
+        actions:
+          - notify-staff
+
+  # Variations of the same content.
+  similar:
+    enabled: true
+    # false: the violation is only reported (warning, strike, tiers) and the message is sent.
+    block: true
+    # Similarity threshold (0.0-1.0). Recommended: 0.80-0.90 strict, 0.70-0.80 moderate.
+    threshold: 0.85
+    time-window: 30
+    message: "&cPlease do not send similar messages repeatedly!"
+    notify-message: "&#FFAFFB[nonchat] &f%player_name% detected similar spam: &#ff0000{message}"
+    console-notify: true
+    tiers:
+      - strikes: 1
+        expire: 30m
+        actions:
+          - notify-staff
+
+  # Too many messages in a short time.
+  flood:
+    enabled: true
+    # false: the violation is only reported (warning, strike, tiers) and the message is sent.
+    block: true
+    max-messages: 5
+    time-window: 5
+    message: "&cYou are sending messages too quickly! Please slow down."
+    notify-message: "&#FFAFFB[nonchat] &f%player_name% detected flood spam: &#ff0000{message}"
+    console-notify: true
+    tiers:
+      - strikes: 1
+        expire: 30m
+        actions:
+          - notify-staff

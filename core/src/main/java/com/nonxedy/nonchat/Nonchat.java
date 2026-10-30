@@ -28,6 +28,7 @@ import com.nonxedy.nonchat.listener.DeathListener;
 import com.nonxedy.nonchat.listener.JoinQuitListener;
 import com.nonxedy.nonchat.listener.MentionTabCompleteListener;
 import com.nonxedy.nonchat.listener.PlayerCleanupListener;
+import com.nonxedy.nonchat.moderation.SanctionsManager;
 import com.nonxedy.nonchat.placeholders.NonchatExpansion;
 import com.nonxedy.nonchat.service.ChatService;
 import com.nonxedy.nonchat.service.CommandService;
@@ -57,6 +58,7 @@ public class Nonchat extends JavaPlugin {
     private DeathMessageService deathMessageService;
     private ChatManager chatManager;
     private MessageManager messageManager;
+    private SanctionsManager sanctionsManager;
     private BroadcastManager broadcastManager;
     private SpyCommand spyCommand;
     private Debugger debugger;
@@ -121,6 +123,10 @@ public class Nonchat extends JavaPlugin {
             this.ignoreCommand = new IgnoreCommand(this, configService.getMessages());
             this.msgToggleCommand = new MsgToggleCommand(this, configService.getMessages());
 
+            // Initialize moderation before the managers that depend on it
+            this.sanctionsManager = SanctionsManager.createDefault(configService.getModeration(), this::logModeration,
+                    new File(getDataFolder(), "strikes.yml"));
+
             // Initialize core managers
             this.chatManager = new ChatManager(this, configService.getConfig(), configService.getMessages());
             this.messageManager = new MessageManager(this, configService.getConfig(), configService.getMessages(), spyCommand);
@@ -133,8 +139,8 @@ public class Nonchat extends JavaPlugin {
 
             // Initialize LinkDetector with translation support before creating commands
             LinkDetector.initialize(configService.getMessages());
-            if (configService.getConfig().shouldUpdateTldList()) {
-                TldListUpdater.updateAsync(this, configService.getConfig().getTldListUrl());
+            if (configService.getModeration().shouldUpdateTldList()) {
+                TldListUpdater.updateAsync(this, configService.getModeration().getTldListUrl());
             }
 
             // Initialize service layer that depends on managers
@@ -366,6 +372,11 @@ public class Nonchat extends JavaPlugin {
                 chatColorHook.close();
             }
 
+            // Write the strikes to disk before the server stops
+            if (sanctionsManager != null) {
+                sanctionsManager.close();
+            }
+
             // Clean up all chat bubbles and display entities
             if (chatManager != null) {
                 chatManager.cleanup();
@@ -437,8 +448,8 @@ public class Nonchat extends JavaPlugin {
             // Reinitialize LinkDetector with updated messages before reloading commands
             if (configService != null) {
                 LinkDetector.initialize(configService.getMessages());
-                if (configService.getConfig().shouldUpdateTldList()) {
-                    TldListUpdater.updateAsync(this, configService.getConfig().getTldListUrl());
+                if (configService.getModeration().shouldUpdateTldList()) {
+                    TldListUpdater.updateAsync(this, configService.getModeration().getTldListUrl());
                 }
             }
 
@@ -480,8 +491,8 @@ public class Nonchat extends JavaPlugin {
             // Reinitialize LinkDetector with updated messages before reloading commands
             if (configService != null) {
                 LinkDetector.initialize(configService.getMessages());
-                if (configService.getConfig().shouldUpdateTldList()) {
-                    TldListUpdater.updateAsync(this, configService.getConfig().getTldListUrl());
+                if (configService.getModeration().shouldUpdateTldList()) {
+                    TldListUpdater.updateAsync(this, configService.getModeration().getTldListUrl());
                 }
             }
 
@@ -607,6 +618,24 @@ public class Nonchat extends JavaPlugin {
      * Logs chat messages to debug file
      * @param message The message to log
      */
+    /**
+     * Logs a moderation event: to the console and, when the debugger is running, to the debug log file.
+     * Does nothing unless 'debug' is enabled in config.yml.
+     */
+    public void logModeration(String message) {
+        try {
+            if (configService == null || !configService.getConfig().isDebug()) {
+                return;
+            }
+            getLogger().log(Level.INFO, "[Moderation] {0}", message);
+            if (debugger != null) {
+                debugger.debug("Moderation", message);
+            }
+        } catch (Exception e) {
+            getLogger().log(Level.FINE, "Failed to log moderation event: {0}", e.getMessage());
+        }
+    }
+
     public void logChatMessage(String message) {
         try {
             if (debugger != null) {
@@ -624,6 +653,10 @@ public class Nonchat extends JavaPlugin {
 
     public MessageManager getMessageManager() {
         return messageManager;
+    }
+
+    public SanctionsManager getSanctionsManager() {
+        return sanctionsManager;
     }
 
     public SpyCommand getSpyCommand() {

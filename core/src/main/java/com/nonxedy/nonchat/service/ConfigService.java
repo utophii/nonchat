@@ -9,6 +9,7 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.api.IConfigurable;
+import com.nonxedy.nonchat.config.ModerationConfig;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.placeholders.impl.ConfigurablePlaceholder;
@@ -18,19 +19,23 @@ public class ConfigService implements IConfigurable {
     private final Nonchat plugin;
     private final PluginConfig config;
     private final PluginMessages messages;
+    private final ModerationConfig moderation;
 
     public ConfigService(Nonchat plugin) {
         this.plugin = plugin;
         this.config = new PluginConfig(plugin);
         this.messages = new PluginMessages(plugin);
+        this.moderation = new ModerationConfig(plugin, messages);
         load();
         this.messages.loadLanguage();
     }
 
     @Override
     public void load() {
-        config.loadConfig();
         messages.loadLanguage();
+        // Migrates the old sections out of config.yml, so it has to be read afterwards
+        moderation.load();
+        config.loadConfig();
     }
 
     @Override
@@ -41,12 +46,17 @@ public class ConfigService implements IConfigurable {
     @Override
     public void reload() {
         //plugin.reloadConfig();
-        config.reloadConfig();
         messages.reloadConfig();
+        moderation.reload();
+        config.reloadConfig();
     }
 
     public PluginConfig getConfig() {
         return config;
+    }
+
+    public ModerationConfig getModeration() {
+        return moderation;
     }
 
     public PluginMessages getMessages() {

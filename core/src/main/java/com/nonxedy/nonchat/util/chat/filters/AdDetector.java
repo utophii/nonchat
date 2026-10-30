@@ -2,19 +2,22 @@ package com.nonxedy.nonchat.util.chat.filters;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.bukkit.entity.Player;
 
-import com.nonxedy.nonchat.api.MessageFilter;
-import com.nonxedy.nonchat.config.PluginConfig;
+import com.nonxedy.nonchat.config.ModerationConfig;
+import com.nonxedy.nonchat.moderation.Violation;
+import com.nonxedy.nonchat.moderation.ViolationDetector;
+import com.nonxedy.nonchat.moderation.ViolationType;
 import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 
 
-public class AdDetector implements MessageFilter {
+public class AdDetector implements ViolationDetector {
     private static final String DOMAIN =
             "(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}";
     private static final String IPV4 = "(?:\\d{1,3}\\.){3}\\d{1,3}";
@@ -45,19 +48,15 @@ public class AdDetector implements MessageFilter {
     private static final float BARE_HOST_SENSITIVITY = 0.25f;
     private static final float COMMON_TERMS_SENSITIVITY = 0.5f;
 
-    private final PluginConfig config;
+    private final ModerationConfig config;
     private final Float fixedSensitivity;
-    private final String punishCommand;
-    private final boolean staffNotify;
-    private final String notifyMessage;
 
     /**
      * Creates a detector using the configured sensitivity. The value is read
      * for every message, so it also follows a live configuration reload.
      */
-    public AdDetector(PluginConfig config, String punishCommand,
-                      boolean staffNotify, String notifyMessage) {
-        this(config, (Float) null, punishCommand, staffNotify, notifyMessage);
+    public AdDetector(ModerationConfig config) {
+        this(config, (Float) null);
     }
 
     /**
@@ -65,32 +64,37 @@ public class AdDetector implements MessageFilter {
      * sensitivity value. Explicit values remain fixed; production code uses
      * the config-backed constructor above.
      */
-    public AdDetector(PluginConfig config, float sensitivity, String punishCommand,
-                      boolean staffNotify, String notifyMessage) {
-        this(config, Float.valueOf(sensitivity), punishCommand, staffNotify, notifyMessage);
+    public AdDetector(ModerationConfig config, float sensitivity) {
+        this(config, Float.valueOf(sensitivity));
     }
 
-    private AdDetector(PluginConfig config, Float fixedSensitivity, String punishCommand,
-                       boolean staffNotify, String notifyMessage) {
+    private AdDetector(ModerationConfig config, Float fixedSensitivity) {
         this.config = config;
         this.fixedSensitivity = fixedSensitivity;
-        this.punishCommand = punishCommand;
-        this.staffNotify = staffNotify;
-        this.notifyMessage = notifyMessage;
     }
 
     @Override
-    public boolean shouldFilter(Player player, String message) {
-        return shouldFilter(player, message, MentionCompletionUtil::isOnlinePlayerName);
+    public String bypassPermission() {
+        return "nonchat.ad.bypass";
     }
 
-    public boolean shouldFilter(Player player, String message, Predicate<String> onlinePlayerPredicate) {
-        if ((player != null && player.hasPermission("nonchat.ad.bypass")) || message == null || message.isBlank()) {
-            return false;
+    @Override
+    public Optional<Violation> inspect(Player player, String message) {
+        if (!config.isAntiAdEnabled() || message == null || message.isBlank()) {
+            return Optional.empty();
         }
 
-        if (player != null && !config.isAntiAdEnabled()) return false;
+        return isAdvertisement(message, MentionCompletionUtil::isOnlinePlayerName)
+                ? Optional.of(new Violation(ViolationType.ADVERTISING, player.getUniqueId(), message))
+                : Optional.empty();
+    }
 
+    /**
+     * Checks whether a message advertises something
+     * @param message The message as typed by the player
+     * @param onlinePlayerPredicate Identifies online player names, so mentions are ignored
+     */
+    public boolean isAdvertisement(String message, Predicate<String> onlinePlayerPredicate) {
         String sanitized = MentionCompletionUtil.stripMentions(
                 ColorUtil.stripFormatting(message),
                 onlinePlayerPredicate);
@@ -102,7 +106,7 @@ public class AdDetector implements MessageFilter {
 
         // Explicit URLs are certain advertisements regardless of sensitivity.
         if (containsUnwhitelistedMatch(EXPLICIT_URL_PATTERN, sanitized, candidate -> true)) {
-            return handleDetection(player, message);
+            return true;
         }
 
         // Bare domains and IP addresses are less certain and therefore respect
@@ -113,20 +117,20 @@ public class AdDetector implements MessageFilter {
         if (sensitivity >= BARE_HOST_SENSITIVITY
                 && containsUnwhitelistedMatch(BARE_HOST_PATTERN, sanitized,
                         TldList::isPlausibleHost)) {
-            return handleDetection(player, message);
+            return true;
         }
 
         // Textual heuristics are the least certain detection mode and are only
         // enabled at higher sensitivity values.
         if (sensitivity >= COMMON_TERMS_SENSITIVITY && detectCommonAdTerms(sanitized)) {
-            return handleDetection(player, message);
+            return true;
         }
 
         return false;
     }
 
     /**
-     * Reads the value from PluginConfig on every check so /nonchat reload
+     * Reads the value from ModerationConfig on every check so /nonchat reload
      * immediately applies a changed sensitivity without recreating managers.
      */
     private float getSensitivity() {
@@ -286,18 +290,5 @@ public class AdDetector implements MessageFilter {
                     && SERVER_WORD_PATTERN.matcher(message).find())
                 || (IP_WORD_PATTERN.matcher(message).find()
                     && PLAY_WORD_PATTERN.matcher(message).find());
-    }
-
-    private boolean handleDetection(Player player, String message) {
-        // Matcher-only callers (including tests) do not execute server side effects.
-        if (player == null) return true;
-        java.util.ArrayList<String> defaults = new java.util.ArrayList<>(List.of("block"));
-        if (config.shouldNotifyStaffAboutAds()) defaults.add("notify-staff");
-        String command = config.getAntiAdPunishCommand();
-        if (command != null && !command.isBlank()) defaults.add(command);
-        return FilterActionHandler.handle(config, player, message,
-                FilterSettings.read(config.getConfig(), "anti-ad", defaults,
-                        config.getPlugin().getConfigService().getMessages().getString("blocked-words"),
-                        config.getAntiAdNotifyMessage(), config.shouldNotifyStaffAboutAds(), "nonchat.ad.notify"));
     }
 }
