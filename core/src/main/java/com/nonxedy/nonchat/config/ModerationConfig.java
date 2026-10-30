@@ -27,7 +27,7 @@ public class ModerationConfig {
     private final Nonchat plugin;
     private final PluginMessages messages;
     private final File file;
-    private FileConfiguration config = new YamlConfiguration();
+    private volatile FileConfiguration config = new YamlConfiguration();
 
     public ModerationConfig(Nonchat plugin, PluginMessages messages) {
         this.plugin = plugin;
