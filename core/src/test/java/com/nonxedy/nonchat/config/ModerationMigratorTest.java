@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -24,7 +25,16 @@ class ModerationMigratorTest {
     }
 
     private YamlConfiguration legacy(String resource) {
-        return YamlConfiguration.loadConfiguration(new File(getClass().getResource(resource).getFile()));
+        return YamlConfiguration.loadConfiguration(resource(resource).toFile());
+    }
+
+    // getFile() keeps the URL escaping, so a path like "programaci%C3%B3n" would not exist on disk
+    private Path resource(String name) {
+        try {
+            return Path.of(getClass().getResource(name).toURI());
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private String template() throws IOException {
@@ -79,7 +89,7 @@ class ModerationMigratorTest {
     @Test
     void migratesFileAndRemovesOnlyLegacySections(@TempDir Path dir) throws IOException {
         File config = dir.resolve("config.yml").toFile();
-        Files.copy(new File(getClass().getResource(LEGACY).getFile()).toPath(), config.toPath());
+        Files.copy(resource(LEGACY), config.toPath());
         File target = dir.resolve("moderation.yml").toFile();
 
         assertTrue(ModerationMigrator.migrate(config, target, null, template()));
