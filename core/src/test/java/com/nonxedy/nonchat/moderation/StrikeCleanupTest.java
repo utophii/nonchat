@@ -92,6 +92,8 @@ class StrikeCleanupTest {
         } finally {
             other.join(10_000);
         }
+        // Reached only if the body did not fail, so it never hides the original exception
+        assertFalse(other.isAlive(), "the thread did not finish");
     }
 
     @Test
