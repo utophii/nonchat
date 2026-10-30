@@ -1,7 +1,9 @@
 package com.nonxedy.nonchat.moderation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -127,10 +129,20 @@ class StrikePersistenceTest {
         });
     }
 
+    // close() waits for the saver with a timed wait; reaching it proves it did not return early
     private static void waitUntilClosing(Thread closing) {
-        while (closing.getState() != Thread.State.TIMED_WAITING && closing.getState() != Thread.State.TERMINATED) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (System.nanoTime() < deadline) {
+            Thread.State state = closing.getState();
+            if (state == Thread.State.TIMED_WAITING) {
+                return;
+            }
+            if (state == Thread.State.TERMINATED) {
+                fail("close() returned without waiting for the saver");
+            }
             Thread.onSpinWait();
         }
+        fail("close() never started waiting for the saver");
     }
 
     @Test
@@ -141,6 +153,7 @@ class StrikePersistenceTest {
         ExecutorService saver = saverOf(manager);
         CountDownLatch release = new CountDownLatch(1);
         Thread closing = new Thread(manager::close);
+        closing.setDaemon(true);
         try {
             block(saver, release);
             manager.process(player, "ONE");
@@ -148,11 +161,11 @@ class StrikePersistenceTest {
 
             closing.start();
             waitUntilClosing(closing);
-            assertEquals(Thread.State.TIMED_WAITING, closing.getState(), "close() must wait for the saver");
         } finally {
             release.countDown();
-            closing.join();
+            closing.join(10_000);
         }
+        assertFalse(closing.isAlive(), "close() did not finish");
 
         assertTrue(saver.isTerminated());
         assertEquals(2, new StrikeStorage(file).load().get(id).size());
@@ -170,18 +183,19 @@ class StrikePersistenceTest {
             manager.close();
             stillInterrupted.set(Thread.currentThread().isInterrupted());
         });
+        closing.setDaemon(true);
         try {
             block(saver, release);
             manager.process(player, "ONE");
 
             closing.start();
             waitUntilClosing(closing);
-            assertEquals(Thread.State.TIMED_WAITING, closing.getState(), "close() must wait for the saver");
             closing.interrupt();
         } finally {
             release.countDown();
-            closing.join();
+            closing.join(10_000);
         }
+        assertFalse(closing.isAlive(), "close() did not finish");
 
         assertTrue(stillInterrupted.get(), "the interruption is not swallowed");
         assertTrue(saver.awaitTermination(10, TimeUnit.SECONDS));
