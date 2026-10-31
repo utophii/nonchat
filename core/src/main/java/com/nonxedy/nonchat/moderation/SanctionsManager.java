@@ -185,9 +185,11 @@ public class SanctionsManager {
     /**
      * Stops the background saver, waits for its pending saves and writes the strikes to disk.
      * Call when the plugin is disabled.
-     * The wait is limited, so a stuck disk cannot hang the shutdown: when it runs out or the thread is
-     * interrupted, the pending saves are dropped and the strikes are still written once, but a save
-     * that is already running may finish after this method returns.
+     * The wait for queued saves is limited: when it runs out or the thread is interrupted, the queued saves
+     * are dropped, the running one is interrupted and the strikes are still written once.
+     * The final write waits for a save that is already running, since both hold the storage lock, so the
+     * timeout does not bound it: a write that ignores the interruption (e.g. a stuck network disk) still
+     * delays the shutdown.
      */
     public void close() {
         if (storage == null) {
