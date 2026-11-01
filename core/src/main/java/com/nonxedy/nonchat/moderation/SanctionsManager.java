@@ -1,7 +1,7 @@
 package com.nonxedy.nonchat.moderation;
 
-import java.time.Duration;
 import java.io.File;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -221,10 +222,12 @@ public class SanctionsManager {
             return;
         }
         if (savePending.compareAndSet(false, true)) {
-            saver.execute(() -> {
-                savePending.set(false);
-                saveStrikes();
-            });
+            try {
+                saver.execute(() -> {
+                    savePending.set(false);
+                    saveStrikes();
+                });
+            } catch (RejectedExecutionException ignored) {}
         }
     }
 
