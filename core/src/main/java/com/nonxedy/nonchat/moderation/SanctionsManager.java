@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -239,7 +240,7 @@ public class SanctionsManager {
     }
 
     private Map<UUID, List<Strike>> snapshot() {
-        Map<UUID, List<Strike>> copy = new java.util.HashMap<>();
+        Map<UUID, List<Strike>> copy = new HashMap<>();
         strikes.forEach((playerId, list) -> {
             synchronized (list) {
                 copy.put(playerId, List.copyOf(list));
@@ -271,6 +272,7 @@ public class SanctionsManager {
             debug.accept(player.getName() + " has no tier to apply for " + violation.type()
                     + " (valid strikes: " + validStrikes(violation) + ", tiers: " + rule.tiers().size() + ")");
         }
+        actionRunner.notifyConsole(player, violation, rule);
         actionRunner.warn(player, violation, rule);
         if (!rule.block()) {
             debug.accept("Message of " + player.getName() + " allowed: " + violation.type() + " has block: false");

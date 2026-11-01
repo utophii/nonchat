@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
@@ -13,7 +14,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
+import org.bukkit.Bukkit;
+import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.Test;
+
+import com.nonxedy.nonchat.util.core.messages.MessageUtil;
+import net.kyori.adventure.text.Component;
 
 class SanctionsManagerBlockTest {
 
@@ -45,6 +52,39 @@ class SanctionsManagerBlockTest {
                 type -> new ViolationRule(type, null, null, null, false, block.get(type),
                         List.of(new SanctionTier(1, Duration.ofMinutes(5), List.of()))),
                 line -> { }, null);
+    }
+
+    @Test
+    void consoleLoggingIsIndependentOfTiersAndStaffActions() {
+        ConsoleCommandSender console = mock(ConsoleCommandSender.class);
+        PluginManager plugins = mock(PluginManager.class);
+        try (var bukkit = mockStatic(Bukkit.class); var messages = mockStatic(MessageUtil.class)) {
+            bukkit.when(Bukkit::getConsoleSender).thenReturn(console);
+            bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
+            bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of());
+
+            List<List<SanctionTier>> cases = List.of(
+                    List.of(),
+                    List.of(new SanctionTier(3, Duration.ofMinutes(5), List.of())),
+                    List.of(new SanctionTier(1, Duration.ofMinutes(5), List.of())),
+                    List.of(new SanctionTier(1, Duration.ofMinutes(5), List.of("notify-staff"))));
+            for (List<SanctionTier> tiers : cases) {
+                for (boolean enabled : List.of(true, false)) {
+                    messages.clearInvocations();
+                    SanctionsManager manager = new SanctionsManager(
+                            List.of(detects(ViolationType.CAPS, "HELLO")),
+                            type -> new ViolationRule(type, null, "{message}", "staff", enabled, true, tiers),
+                            line -> { }, null);
+
+                    assertTrue(manager.process(player, "HELLO"));
+
+                    if (enabled) {
+                        messages.verify(() -> MessageUtil.send(console, Component.text("HELLO")));
+                    }
+                    messages.verifyNoMoreInteractions();
+                }
+            }
+        }
     }
 
     @Test

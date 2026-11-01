@@ -48,7 +48,7 @@ banned-words:
   # Text of the 'notify-staff' action ({message} is replaced).
   # Staff need 'nonchat.wordblocker.notify' (OPs always receive it).
   notify-message: "&#FFAFFB[nonchat] &f%player_name% sent banned words: &#ff0000{message}"
-  # Also log 'notify-staff' to the console.
+  # Log every violation to the console, independently of tiers and 'notify-staff'.
   console-notify: true
   tiers:
     - strikes: 1
@@ -107,7 +107,7 @@ advertising:
   # Text of the 'notify-staff' action ({message} is the flagged message).
   # Staff need 'nonchat.ad.notify' (OPs always receive it).
   notify-message: "&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}"
-  # Also log 'notify-staff' to the console.
+  # Log every violation to the console, independently of tiers and 'notify-staff'.
   console-notify: true
   tiers:
     - strikes: 1

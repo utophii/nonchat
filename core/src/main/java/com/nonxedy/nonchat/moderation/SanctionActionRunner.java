@@ -74,8 +74,14 @@ class SanctionActionRunner {
                 .filter(p -> (permission != null && p.hasPermission(permission)) || p.isOp())
                 .forEach(p -> MessageUtil.send(p, component));
 
-        if (rule.consoleNotify()) {
-            MessageUtil.send(Bukkit.getConsoleSender(), component);
+    }
+
+    // Console logging is per violation, independent of the selected tier and staff actions.
+    void notifyConsole(Player player, Violation violation, ViolationRule rule) {
+        String template = rule.staffNotifyMessage();
+        if (rule.consoleNotify() && template != null && !template.isEmpty()) {
+            MessageUtil.send(Bukkit.getConsoleSender(),
+                    render(resolvePlaceholders(player, template), "{message}", violation.message()));
         }
     }
 
