@@ -9,7 +9,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.nonxedy.nonchat.config.PluginConfig;
+import com.nonxedy.nonchat.config.ModerationConfig;
 
 class AdDetectorTest {
 
@@ -18,10 +18,10 @@ class AdDetectorTest {
     }
 
     private static boolean flags(float sensitivity, List<String> urlRules, String message) {
-        PluginConfig config = mock(PluginConfig.class);
+        ModerationConfig config = mock(ModerationConfig.class);
         when(config.getAntiAdWhitelistedUrls()).thenReturn(urlRules);
-        AdDetector detector = new AdDetector(config, sensitivity, null, false, null);
-        return detector.shouldFilter(null, message, name -> false);
+        AdDetector detector = new AdDetector(config, sensitivity);
+        return detector.isAdvertisement(message, name -> false);
     }
 
     @Test

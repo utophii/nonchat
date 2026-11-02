@@ -16,10 +16,7 @@ import com.nonxedy.nonchat.command.impl.MsgToggleCommand;
 import com.nonxedy.nonchat.command.impl.SpyCommand;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
-import com.nonxedy.nonchat.util.chat.filters.AdDetector;
-import com.nonxedy.nonchat.util.chat.filters.CapsFilter;
-import com.nonxedy.nonchat.util.chat.filters.SpamDetector;
-import com.nonxedy.nonchat.util.chat.filters.WordBlocker;
+import com.nonxedy.nonchat.moderation.SanctionsManager;
 import com.nonxedy.nonchat.util.chat.formatting.PrivateMessageUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
@@ -35,18 +32,14 @@ public class MessageManager {
     private final Map<UUID, UUID> lastMessageSender = new ConcurrentHashMap<>();
     private volatile IgnoreCommand ignoreCommand;
     private volatile MsgToggleCommand msgToggleCommand;
-    private final AdDetector adDetector;
-    private final SpamDetector spamDetector;
-    private final WordBlocker wordBlocker;
+    private final SanctionsManager sanctionsManager;
 
     public MessageManager(Nonchat plugin, PluginConfig config, PluginMessages messages, SpyCommand spyCommand) {
         this.plugin = plugin;
         this.config = config;
         this.messages = messages;
         this.spyCommand = spyCommand;
-        this.adDetector = new AdDetector(config, config.getAntiAdSensitivity(), config.getAntiAdPunishCommand(), config.shouldNotifyStaffAboutAds(), config.getAntiAdNotifyMessage());
-        this.spamDetector = new SpamDetector(config, messages);
-        this.wordBlocker = new WordBlocker(config, messages);
+        this.sanctionsManager = plugin.getSanctionsManager();
     }
 
     public Map<UUID, UUID> getLastMessageSender() {
@@ -231,36 +224,8 @@ public class MessageManager {
      * Returns true if message is allowed, false if it should be blocked.
      */
     private boolean applyFilters(Player player, String message) {
-        // Check blocked words
-        if (handleBlockedWords(player, message)) {
-            return false;
-        }
-
-        // Check caps filter
-        CapsFilter capsFilter = config.getCapsFilter();
-        if (capsFilter.shouldFilter(player, message)) {
-            return false;
-        }
-
-        // Check spam
-        if (config.isAntiSpamEnabled() && !player.hasPermission("nonchat.spam.bypass")) {
-            if (spamDetector.shouldFilter(player, message)) {
-                return false;
-            }
-        }
-
-        // Check advertisements
-        if (config.isAntiAdEnabled() && !player.hasPermission("nonchat.ad.bypass")) {
-            if (adDetector.shouldFilter(player, message)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private boolean handleBlockedWords(Player player, String message) {
-        return wordBlocker.checkAndHandle(player, message);
+        // Run detectors and apply sanctions
+        return !sanctionsManager.process(player, message);
     }
 
     private void playPrivateMessageSound(Player receiver) {

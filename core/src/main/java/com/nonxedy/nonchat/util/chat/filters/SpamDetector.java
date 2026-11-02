@@ -1,6 +1,7 @@
 package com.nonxedy.nonchat.util.chat.filters;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -8,9 +9,10 @@ import org.bukkit.entity.Player;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.nonxedy.nonchat.api.MessageFilter;
-import com.nonxedy.nonchat.config.PluginConfig;
-import com.nonxedy.nonchat.config.PluginMessages;
+import com.nonxedy.nonchat.config.ModerationConfig;
+import com.nonxedy.nonchat.moderation.Violation;
+import com.nonxedy.nonchat.moderation.ViolationDetector;
+import com.nonxedy.nonchat.moderation.ViolationType;
 import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.chat.filters.MessageHistory.MessageEntry;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
@@ -20,15 +22,13 @@ import com.nonxedy.nonchat.util.core.colors.ColorUtil;
  * Intelligent spam detection filter
  * Detects repetitive messages, similar messages, and message flooding
  */
-public class SpamDetector implements MessageFilter {
+public class SpamDetector implements ViolationDetector {
     
-    private final PluginConfig config;
-    private final PluginMessages messages;
+    private final ModerationConfig config;
     private final Cache<UUID, MessageHistory> messageHistoryCache;
 
-    public SpamDetector(PluginConfig config, PluginMessages messages) {
+    public SpamDetector(ModerationConfig config) {
         this.config = config;
-        this.messages = messages;
         
         // Initialize cache with expiration based on maximum time window
         // Use the largest time window from all detection types
@@ -48,15 +48,15 @@ public class SpamDetector implements MessageFilter {
     }
 
     @Override
-    public boolean shouldFilter(Player player, String message) {
-        // Check if spam filter is enabled
-        if (player == null || message == null || !config.isAntiSpamEnabled()) {
-            return false;
-        }
+    public String bypassPermission() {
+        return "nonchat.spam.bypass";
+    }
 
-        // Check bypass permission
-        if (player.hasPermission("nonchat.spam.bypass")) {
-            return false;
+    @Override
+    public Optional<Violation> inspect(Player player, String message) {
+        // Check if spam filter is enabled
+        if (message == null || !config.isAntiSpamEnabled()) {
+            return Optional.empty();
         }
 
         // Get or create message history for player
@@ -72,7 +72,7 @@ public class SpamDetector implements MessageFilter {
             if (detectRepetitiveSpam(history, message)) {
                 // Add message to history for tracking, but block it
                 history.addMessage(message, currentTime);
-                return handleSpamDetection(player, message, "repetitive");
+                return violation(player, message, ViolationType.SPAM_REPETITIVE);
             }
         }
 
@@ -81,7 +81,7 @@ public class SpamDetector implements MessageFilter {
             if (detectSimilarSpam(history, message)) {
                 // Add message to history for tracking, but block it
                 history.addMessage(message, currentTime);
-                return handleSpamDetection(player, message, "similar");
+                return violation(player, message, ViolationType.SPAM_SIMILAR);
             }
         }
 
@@ -90,7 +90,7 @@ public class SpamDetector implements MessageFilter {
             if (detectFlood(history)) {
                 // Add message to history for tracking, but block it
                 history.addMessage(message, currentTime);
-                return handleSpamDetection(player, message, "flood");
+                return violation(player, message, ViolationType.SPAM_FLOOD);
             }
         }
 
@@ -100,7 +100,11 @@ public class SpamDetector implements MessageFilter {
         // Cleanup old messages periodically
         cleanupOldMessages(history);
 
-        return false;
+        return Optional.empty();
+    }
+
+    private Optional<Violation> violation(Player player, String message, ViolationType type) {
+        return Optional.of(new Violation(type, player.getUniqueId(), message));
     }
 
     /**
@@ -192,56 +196,6 @@ public class SpamDetector implements MessageFilter {
         // If count >= maxMessages, adding current message would exceed the limit
         int messageCount = history.getMessageCountInTimeWindow(timeWindow);
         return messageCount >= maxMessages;
-    }
-
-    /**
-     * Handles spam detection by executing configured actions
-     * @param player The player who sent the spam
-     * @param message The spam message
-     * @param spamType Type of spam detected (repetitive, similar, flood)
-     */
-    private boolean handleSpamDetection(Player player, String message, String spamType) {
-        return FilterActionHandler.handle(config, player, message,
-                FilterSettings.read(config.getConfig(), "anti-spam." + spamType,
-                        getActionsForSpamType(spamType), getMessageForSpamType(spamType),
-                        messages.getString("spam-detected-" + spamType),
-                        config.isAntiSpamConsoleNotifyEnabled(), "nonchat.spam.notify"));
-    }
-
-    /**
-     * Gets actions list for a specific spam type
-     * @param spamType Type of spam (repetitive, similar, flood)
-     * @return List of actions to execute
-     */
-    private List<String> getActionsForSpamType(String spamType) {
-        switch (spamType) {
-            case "repetitive":
-                return config.getAntiSpamRepetitiveActions();
-            case "similar":
-                return config.getAntiSpamSimilarActions();
-            case "flood":
-                return config.getAntiSpamFloodActions();
-            default:
-                return List.of("block");
-        }
-    }
-
-    /**
-     * Gets warning message for a specific spam type
-     * @param spamType Type of spam (repetitive, similar, flood)
-     * @return Warning message
-     */
-    private String getMessageForSpamType(String spamType) {
-        switch (spamType) {
-            case "repetitive":
-                return config.getAntiSpamRepetitiveMessage();
-            case "similar":
-                return config.getAntiSpamSimilarMessage();
-            case "flood":
-                return config.getAntiSpamFloodMessage();
-            default:
-                return "";
-        }
     }
 
     /**
