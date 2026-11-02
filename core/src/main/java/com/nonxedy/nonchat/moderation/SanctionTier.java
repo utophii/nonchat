@@ -8,6 +8,10 @@ import java.util.List;
  * @param strikesRequired Number of valid strikes needed for the tier to fire
  * @param expire How long a strike keeps counting towards this tier
  * @param actions Actions to run: 'notify-staff' or console commands ('block' is implied and ignored)
+ * @param message Warning override; null inherits the rule's message, empty disables it
  */
-public record SanctionTier(int strikesRequired, Duration expire, List<String> actions) {
+public record SanctionTier(int strikesRequired, Duration expire, List<String> actions, String message) {
+    public SanctionTier(int strikesRequired, Duration expire, List<String> actions) {
+        this(strikesRequired, expire, actions, null);
+    }
 }

@@ -273,7 +273,7 @@ public class SanctionsManager {
                     + " (valid strikes: " + validStrikes(violation) + ", tiers: " + rule.tiers().size() + ")");
         }
         actionRunner.notifyConsole(player, violation, rule);
-        actionRunner.warn(player, violation, rule);
+        actionRunner.warn(player, violation, rule, tier);
         if (!rule.block()) {
             debug.accept("Message of " + player.getName() + " allowed: " + violation.type() + " has block: false");
         }

@@ -48,10 +48,10 @@ class SanctionActionRunner {
     }
 
     /**
-     * Sends the rule's warning message to the player, if configured
+     * Sends the selected tier's warning, falling back to the rule's message when not overridden
      */
-    void warn(Player player, Violation violation, ViolationRule rule) {
-        String warnMessage = rule.warnMessage();
+    void warn(Player player, Violation violation, ViolationRule rule, SanctionTier tier) {
+        String warnMessage = tier != null && tier.message() != null ? tier.message() : rule.warnMessage();
         if (warnMessage == null || warnMessage.isEmpty()) {
             debug.accept("No warning message for " + violation.type());
             return;

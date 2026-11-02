@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 
 import java.time.Duration;
 import java.util.List;
@@ -17,10 +19,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
+import com.nonxedy.nonchat.config.ModerationConfig;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 class SanctionsManagerBlockTest {
 
@@ -52,6 +57,38 @@ class SanctionsManagerBlockTest {
                 type -> new ViolationRule(type, null, null, null, false, block.get(type),
                         List.of(new SanctionTier(1, Duration.ofMinutes(5), List.of()))),
                 line -> { }, null);
+    }
+
+    @Test
+    void tierMessagesOverrideInheritOrDisableTheWarning() throws Exception {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.loadFromString("""
+                caps:
+                  message: "Default warning"
+                  tiers:
+                    - {strikes: 2, expire: 1h, message: "Warning for %player_name%: %message% ({percentage}%)", actions: []}
+                    - {strikes: 3, expire: 1h, message: "", actions: []}
+                    - {strikes: 4, expire: 1h, actions: []}
+                """);
+        ModerationConfig config = mock(ModerationConfig.class);
+        when(config.getSection("caps")).thenReturn(yaml.getConfigurationSection("caps"));
+        when(config.getMaxCapsPercentage()).thenReturn(70);
+        PluginManager plugins = mock(PluginManager.class);
+        try (var bukkit = mockStatic(Bukkit.class); var messages = mockStatic(MessageUtil.class)) {
+            bukkit.when(Bukkit::getPluginManager).thenReturn(plugins);
+            SanctionsManager manager = new SanctionsManager(
+                    List.of(detects(ViolationType.CAPS, "HELLO")),
+                    new ModerationRuleProvider(config), line -> { }, null);
+            for (String expected : List.of("Default warning", "Warning for Alice: HELLO (70%)", "", "Default warning")) {
+                messages.clearInvocations();
+                assertTrue(manager.process(player, "HELLO"));
+                if (!expected.isEmpty()) {
+                    messages.verify(() -> MessageUtil.send(eq(player), argThat((Component component) ->
+                            PlainTextComponentSerializer.plainText().serialize(component).equals(expected))));
+                }
+                messages.verifyNoMoreInteractions();
+            }
+        }
     }
 
     @Test

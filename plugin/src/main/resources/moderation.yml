@@ -7,12 +7,15 @@
 # Tier format:
 #   - strikes: 3          # violations needed
 #     expire: 1h          # how long a violation counts (number + s/m/h/d)
+#     message: "..."     # optional: overrides the rule's warning for this tier
+#                         # omitted: use the rule's message; "": send no warning
+#                         # supports the same formatting and placeholders as the rule's message
 #     actions: [...]      # 'notify-staff', or any console command (%player_name% is replaced)
 #                         # 'warn' is implied and can be omitted
 # Example: warn at 1 strike, kick at 3, ban at 5:
 #   tiers:
-#     - { strikes: 1, expire: 10m, actions: [warn] }
-#     - { strikes: 3, expire: 1h, actions: ["kick %player_name%"] }
+#     - { strikes: 1, expire: 10m, message: "&ePlease follow the chat rules!", actions: [warn] }
+#     - { strikes: 3, expire: 1h, message: "&cYou have been kicked for repeated violations.", actions: ["kick %player_name%"] }
 #     - { strikes: 5, expire: 24h, actions: ["ban %player_name%"] }
 # ==================================================
 

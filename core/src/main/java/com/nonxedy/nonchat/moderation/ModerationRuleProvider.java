@@ -105,7 +105,11 @@ public class ModerationRuleProvider implements Function<ViolationType, Violation
             if (entry.get("actions") instanceof List<?> list) {
                 list.forEach(action -> actions.add(String.valueOf(action)));
             }
-            tiers.add(new SanctionTier(number.intValue(), expire, actions));
+            String message = entry.get("message") instanceof String text ? text : null;
+            if (type == ViolationType.CAPS && message != null) {
+                message = message.replace("{percentage}", String.valueOf(config.getMaxCapsPercentage()));
+            }
+            tiers.add(new SanctionTier(number.intValue(), expire, actions, message));
         }
         return tiers;
     }
