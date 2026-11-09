@@ -83,8 +83,9 @@ final class ModerationMigrator {
         }
         converted.options().setHeader(List.of(
                 "Chat moderation settings (moved here from the old config.yml sections).",
-                "Each violation kind has sanction 'tiers': once a player has 'strikes' violations within 'expire',",
-                "the tier's actions run. 'block: false' only reports a violation. Actions: 'notify-staff' or any console",
+                "Each violation kind has sanction tiers, reached after the configured number of strikes.",
+                "Each violation restarts the current tier's expire timer, inactivity resets progression.",
+                "'block: false' only reports a violation. Actions: 'notify-staff' or any console",
                 "command (%player_name% is replaced). Durations: number + s/m/h/d."));
         return converted.saveToString();
     }

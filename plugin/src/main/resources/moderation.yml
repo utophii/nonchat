@@ -2,13 +2,17 @@
 # CHAT MODERATION
 # Every violation warns the player and blocks the message, unless the rule has 'block: false'.
 # On top of that, each kind of violation has sanction tiers: when a player collects 'strikes'
-# violations of that kind within 'expire', the tier's 'actions' run. Only the heaviest tier the player qualifies for runs.
+# violations of that kind, the tier's 'actions' run. Only the heaviest qualifying tier runs.
+# Each violation restarts the reset timer using the reached tier's 'expire'.
+# The maximum tier repeats until a full 'expire' passes without violations of that kind.
+# Then progression resets. Before the first threshold, the lowest tier's 'expire' applies.
+# Violation types have independent progression and timers, preserved across restarts.
 #
 # Tier format:
 #   - strikes: 3          # violations needed
-#     expire: 1h          # how long a violation counts (number + s/m/h/d)
+#     expire: 1h          # inactivity before progression resets (number + s/m/h/d)
 #     message: "..."     # optional: overrides the rule's warning for this tier
-#                         # omitted: use the rule's message; "": send no warning
+#                         # omitted: use the rule's message, "": send no warning
 #                         # supports the same formatting and placeholders as the rule's message
 #     actions: [...]      # 'notify-staff', or any console command (%player_name% is replaced)
 #                         # 'warn' is implied and can be omitted

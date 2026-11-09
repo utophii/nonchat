@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -31,9 +32,15 @@ class StrikeStorage {
     private static final Logger LOGGER = Logger.getLogger("nonchat");
 
     private final File file;
+    private final Clock clock;
 
     StrikeStorage(File file) {
+        this(file, Clock.systemUTC());
+    }
+
+    StrikeStorage(File file, Clock clock) {
         this.file = file;
+        this.clock = clock;
     }
 
     /**
@@ -55,7 +62,7 @@ class StrikeStorage {
             return result;
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         for (String key : yaml.getKeys(false)) {
             UUID playerId;
             try {
@@ -82,7 +89,7 @@ class StrikeStorage {
      * Writes the strikes that are still valid, replacing the file atomically
      */
     synchronized void save(Map<UUID, List<Strike>> strikes) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         YamlConfiguration yaml = new YamlConfiguration();
         strikes.forEach((playerId, list) -> {
             List<Map<String, Object>> entries = new ArrayList<>();

@@ -1,7 +1,7 @@
 package com.nonxedy.nonchat.moderation;
 
 import java.io.File;
-import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,6 +45,7 @@ public class SanctionsManager {
     private final SanctionActionRunner actionRunner;
     private final Consumer<String> debug;
     private final Map<UUID, List<Strike>> strikes = new ConcurrentHashMap<>();
+    private final Clock clock;
     private final StrikeStorage storage;
     private final ExecutorService saver;
     private final AtomicBoolean savePending = new AtomicBoolean();
@@ -59,13 +60,20 @@ public class SanctionsManager {
                             Function<ViolationType, ViolationRule> ruleProvider,
                             Consumer<String> debug,
                             File strikesFile) {
+        this(detectors, ruleProvider, debug, strikesFile, Clock.systemUTC());
+    }
+
+    SanctionsManager(List<ViolationDetector> detectors,
+                     Function<ViolationType, ViolationRule> ruleProvider,
+                     Consumer<String> debug, File strikesFile, Clock clock) {
+        this.clock = clock;
         this.detectors = List.copyOf(detectors);
         this.ruleProvider = ruleProvider;
         this.debug = debug;
         this.actionRunner = new SanctionActionRunner(debug);
 
         if (strikesFile != null) {
-            this.storage = new StrikeStorage(strikesFile);
+            this.storage = new StrikeStorage(strikesFile, clock);
             this.saver = Executors.newSingleThreadExecutor(runnable -> {
                 Thread thread = new Thread(runnable, "nonchat-strike-saver");
                 thread.setDaemon(true);
@@ -139,7 +147,7 @@ public class SanctionsManager {
         if (list == null) {
             return List.of();
         }
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         synchronized (list) {
             return list.stream().filter(s -> !s.isExpired(now)).toList();
         }
@@ -172,7 +180,7 @@ public class SanctionsManager {
         }
 
         int removed;
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         synchronized (list) {
             removed = (int) list.stream().filter(s -> s.type() == type && !s.isExpired(now)).count();
             list.removeIf(s -> s.type() == type);
@@ -293,12 +301,6 @@ public class SanctionsManager {
             return null;
         }
 
-        Instant now = Instant.now();
-        Duration longestExpire = rule.tiers().stream()
-                .map(SanctionTier::expire)
-                .max(Comparator.naturalOrder())
-                .orElse(Duration.ZERO);
-
         while (true) {
             List<Strike> list = strikes.computeIfAbsent(violation.playerId(), id -> new ArrayList<>());
             synchronized (list) {
@@ -306,22 +308,24 @@ public class SanctionsManager {
                 if (strikes.get(violation.playerId()) != list) {
                     continue;
                 }
+                Instant now = clock.instant();
                 list.removeIf(s -> s.isExpired(now));
-                list.add(new Strike(violation.playerId(), violation.type(), now, now.plus(longestExpire)));
-
-                // TODO: decide whether a fired tier should consume its strikes; for now it fires on every violation
-                return rule.tiers().stream()
-                        .sorted(Comparator.comparingInt(SanctionTier::strikesRequired).reversed())
-                        .filter(tier -> countStrikes(list, violation.type(), now.minus(tier.expire())) >= tier.strikesRequired())
-                        .findFirst()
+                long count = list.stream().filter(s -> s.type() == violation.type()).count() + 1;
+                SanctionTier selected = rule.tiers().stream()
+                        .filter(tier -> count >= tier.strikesRequired())
+                        .max(Comparator.comparingInt(SanctionTier::strikesRequired))
                         .orElse(null);
+                SanctionTier expirationTier = selected != null ? selected : rule.tiers().stream()
+                        .min(Comparator.comparingInt(SanctionTier::strikesRequired)).orElseThrow();
+                Instant expiresAt = now.plus(expirationTier.expire());
+                // All strikes of this type share the inactivity deadline of the current tier
+                list.replaceAll(strike -> strike.type() == violation.type()
+                        ? new Strike(strike.playerId(), strike.type(), strike.issuedAt(), expiresAt)
+                        : strike);
+                list.add(new Strike(violation.playerId(), violation.type(), now, expiresAt));
+                return selected;
             }
         }
     }
 
-    private long countStrikes(List<Strike> list, ViolationType type, Instant since) {
-        return list.stream()
-                .filter(s -> s.type() == type && !s.issuedAt().isBefore(since))
-                .count();
-    }
 }

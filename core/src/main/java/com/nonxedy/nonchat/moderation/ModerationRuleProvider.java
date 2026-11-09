@@ -21,7 +21,7 @@ import com.nonxedy.nonchat.config.ModerationConfig;
  *   notify-message: "..." # 'notify-staff' text
  *   tiers:
  *     - strikes: 3
- *       expire: 1h       # number + s/m/h/d
+ *       expire: 1h       # inactivity before reset, number + s/m/h/d
  *       actions: ["kick %player_name%"]
  * </pre>
  * Spam has a section per kind (repetitive, similar, flood).
