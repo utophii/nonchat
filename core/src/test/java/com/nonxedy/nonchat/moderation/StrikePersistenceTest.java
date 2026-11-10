@@ -1,18 +1,12 @@
 package com.nonxedy.nonchat.moderation;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.io.File;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,14 +17,33 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.bukkit.entity.Player;
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class StrikePersistenceTest {
 
     private final UUID id = UUID.randomUUID();
     private final Player player = mock(Player.class);
+    private final List<SanctionsManager> managers = new ArrayList<>();
+
+    @AfterEach
+    void stopSaversBeforeTempDirectoryCleanup() throws Exception {
+        for (SanctionsManager manager : managers) {
+            ExecutorService saver = saverOf(manager);
+            if (!saver.isShutdown()) {
+                manager.close();
+            }
+            assertTrue(saver.awaitTermination(10, TimeUnit.SECONDS), "strike saver did not stop");
+        }
+    }
 
     private SanctionsManager manager(File file, int strikesRequired) {
         when(player.getName()).thenReturn("Alice");
@@ -48,7 +61,9 @@ class StrikePersistenceTest {
         };
         ViolationRule rule = new ViolationRule(ViolationType.CAPS, null, null, null, false, true,
                 List.of(new SanctionTier(strikesRequired, Duration.ofHours(1), List.of())));
-        return new SanctionsManager(List.of(detector), type -> rule, line -> { }, file);
+        SanctionsManager manager = new SanctionsManager(List.of(detector), type -> rule, line -> { }, file);
+        managers.add(manager);
+        return manager;
     }
 
     @Test
