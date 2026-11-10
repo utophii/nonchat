@@ -105,7 +105,12 @@ public class ModerationRuleProvider implements Function<ViolationType, Violation
             if (entry.get("actions") instanceof List<?> list) {
                 list.forEach(action -> actions.add(String.valueOf(action)));
             }
-            String message = entry.get("message") instanceof String text ? text : null;
+            Object rawMessage = entry.get("message");
+            if (rawMessage != null && !(rawMessage instanceof String)) {
+                LOGGER.log(Level.WARNING, "[nonchat] Invalid moderation tier message for {0} (needs text, using the rule''s message): {1}",
+                        new Object[] {type, entry});
+            }
+            String message = rawMessage instanceof String text ? text : null;
             if (type == ViolationType.CAPS && message != null) {
                 message = message.replace("{percentage}", String.valueOf(config.getMaxCapsPercentage()));
             }

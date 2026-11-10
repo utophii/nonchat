@@ -4,7 +4,8 @@
 # On top of that, each kind of violation has sanction tiers: when a player collects 'strikes'
 # violations of that kind, the tier's 'actions' run. Only the heaviest qualifying tier runs.
 # Each violation restarts the reset timer using the reached tier's 'expire'.
-# The maximum tier repeats until a full 'expire' passes without violations of that kind.
+# The reached tier repeats on each violation until the next one is reached
+# or a full 'expire' passes without violations of that kind.
 # Then progression resets. Before the first threshold, the lowest tier's 'expire' applies.
 # Violation types have independent progression and timers, preserved across restarts.
 #
@@ -50,9 +51,9 @@ banned-words:
   patterns:
     - '.*\btest\b.*'
     - '.*\d{4,}.*'
-  # Warning sent to the player. %message% is the blocked message. "" sends no warning.
+  # Warning sent to the player. {message} or %message% is the blocked message. "" sends no warning.
   message: "&#ff0000You are not allowed to use this word!"
-  # Text of the 'notify-staff' action ({message} is replaced).
+  # Text of the 'notify-staff' action ({message} or %message% is replaced).
   # Staff need 'nonchat.wordblocker.notify' (OPs always receive it).
   notify-message: "&#FFAFFB[nonchat] &f%player_name% sent banned words: &#ff0000{message}"
   # Log every violation to the console, independently of tiers and 'notify-staff'.
@@ -77,9 +78,10 @@ caps:
   min-length: 4
   # Warning sent to the player. {percentage} is the maximum allowed.
   message: "&#ff0000Too many capital letters! Maximum allowed: {percentage}%"
-  # Text of the 'notify-staff' action ({message} is replaced).
+  # Text of the 'notify-staff' action ({message} or %message% is replaced).
   # Staff need 'nonchat.caps.notify' (OPs always receive it).
   notify-message: "&c%player_name% used excessive caps: {message}"
+  # Log every violation to the console, independently of tiers and 'notify-staff'.
   console-notify: false
   tiers:
     - strikes: 1
@@ -111,7 +113,7 @@ advertising:
   tld-list-url: "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
   # Warning sent to the player.
   message: "&#ff0000You are not allowed to use this word!"
-  # Text of the 'notify-staff' action ({message} is the flagged message).
+  # Text of the 'notify-staff' action ({message} or %message% is the flagged message).
   # Staff need 'nonchat.ad.notify' (OPs always receive it).
   notify-message: "&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}"
   # Log every violation to the console, independently of tiers and 'notify-staff'.
@@ -143,6 +145,7 @@ spam:
     time-window: 10
     message: "&cPlease do not send the same message repeatedly!"
     notify-message: "&#FFAFFB[nonchat] &f%player_name% detected repetitive spam: &#ff0000{message}"
+    # Log every violation to the console, independently of tiers and 'notify-staff'.
     console-notify: true
     tiers:
       - strikes: 1
@@ -160,6 +163,7 @@ spam:
     time-window: 30
     message: "&cPlease do not send similar messages repeatedly!"
     notify-message: "&#FFAFFB[nonchat] &f%player_name% detected similar spam: &#ff0000{message}"
+    # Log every violation to the console, independently of tiers and 'notify-staff'.
     console-notify: true
     tiers:
       - strikes: 1
@@ -176,6 +180,7 @@ spam:
     time-window: 5
     message: "&cYou are sending messages too quickly! Please slow down."
     notify-message: "&#FFAFFB[nonchat] &f%player_name% detected flood spam: &#ff0000{message}"
+    # Log every violation to the console, independently of tiers and 'notify-staff'.
     console-notify: true
     tiers:
       - strikes: 1

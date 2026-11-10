@@ -2,6 +2,7 @@ package com.nonxedy.nonchat.moderation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -89,6 +90,24 @@ class SanctionsManagerBlockTest {
                 messages.verifyNoMoreInteractions();
             }
         }
+    }
+
+    @Test
+    void nonTextTierMessageIsIgnored() throws Exception {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.loadFromString("""
+                caps:
+                  message: "Default warning"
+                  tiers:
+                    - {strikes: 1, expire: 1h, message: 42, actions: []}
+                """);
+        ModerationConfig config = mock(ModerationConfig.class);
+        when(config.getSection("caps")).thenReturn(yaml.getConfigurationSection("caps"));
+
+        ViolationRule rule = new ModerationRuleProvider(config).apply(ViolationType.CAPS);
+
+        assertNull(rule.tiers().get(0).message());
+        assertEquals("Default warning", rule.warnMessage());
     }
 
     @Test
