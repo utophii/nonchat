@@ -79,7 +79,14 @@ public class SanctionsManager {
                 thread.setDaemon(true);
                 return thread;
             });
-            storage.load().forEach((playerId, list) -> strikes.put(playerId, new ArrayList<>(list)));
+            storage.load().forEach((playerId, list) -> {
+                List<Strike> retained = new ArrayList<>(list);
+                trimStrikes(retained);
+                if (!retained.isEmpty()) {
+                    strikes.put(playerId, retained);
+                }
+            });
+            saveAsync();
             debug.accept("Loaded strikes of " + strikes.size() + " player(s) from " + strikesFile.getName());
         } else {
             this.storage = null;
@@ -120,6 +127,12 @@ public class SanctionsManager {
     /** Applies reloaded settings to detector state. */
     public void reload() {
         detectors.forEach(ViolationDetector::reload);
+        strikes.values().forEach(list -> {
+            synchronized (list) {
+                trimStrikes(list);
+            }
+        });
+        saveAsync();
     }
 
     /**
@@ -299,6 +312,26 @@ public class SanctionsManager {
         return getStrikes(violation.playerId()).stream().filter(s -> s.type() == violation.type()).count();
     }
 
+    private void trimStrikes(List<Strike> list) {
+        Instant now = clock.instant();
+        Map<ViolationType, Integer> remaining = new java.util.EnumMap<>(ViolationType.class);
+        for (ViolationType type : ViolationType.values()) {
+            ViolationRule rule = ruleProvider.apply(type);
+            remaining.put(type, rule == null ? 0 : rule.tiers().stream()
+                    .mapToInt(SanctionTier::strikesRequired).max().orElse(0));
+        }
+        // Keep the most recent entries when loading older, oversized files
+        list.sort(Comparator.comparing(Strike::issuedAt).reversed());
+        list.removeIf(strike -> {
+            if (strike.isExpired(now)) return true;
+            int left = remaining.get(strike.type());
+            if (left <= 0) return true;
+            remaining.put(strike.type(), left - 1);
+            return false;
+        });
+        list.sort(Comparator.comparing(Strike::issuedAt));
+    }
+
     /**
      * Adds a strike for the violation and returns the heaviest tier the player now qualifies for
      * @return The tier to apply, or null if no tier has enough strikes yet
@@ -330,6 +363,14 @@ public class SanctionsManager {
                         ? new Strike(strike.playerId(), strike.type(), strike.issuedAt(), expiresAt)
                         : strike);
                 list.add(new Strike(violation.playerId(), violation.type(), now, expiresAt));
+                int limit = rule.tiers().stream().mapToInt(SanctionTier::strikesRequired).max().orElse(0);
+                long excess = count - limit;
+                for (var iterator = list.iterator(); iterator.hasNext() && excess > 0;) {
+                    if (iterator.next().type() == violation.type()) {
+                        iterator.remove();
+                        excess--;
+                    }
+                }
                 return selected;
             }
         }

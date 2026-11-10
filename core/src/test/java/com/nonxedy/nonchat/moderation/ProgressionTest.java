@@ -25,6 +25,10 @@ class ProgressionTest {
     private final Instant start = Instant.parse("2026-01-01T00:00:00Z");
 
     private SanctionsManager manager(File file, int firstThreshold) {
+        return manager(file, firstThreshold, 3);
+    }
+
+    private SanctionsManager manager(File file, int firstThreshold, int maximum) {
         when(player.getName()).thenReturn("Alice");
         when(player.getUniqueId()).thenReturn(id);
         ViolationDetector detector = new ViolationDetector() {
@@ -36,7 +40,7 @@ class ProgressionTest {
         return new SanctionsManager(List.of(detector),
                 type -> new ViolationRule(type, null, null, null, false, true, List.of(
                         new SanctionTier(firstThreshold, Duration.ofSeconds(10), List.of()),
-                        new SanctionTier(3, Duration.ofSeconds(20), List.of()))), events::add, file, clock);
+                        new SanctionTier(maximum, Duration.ofSeconds(20), List.of()))), events::add, file, clock);
     }
 
     private void at(long seconds) {
@@ -64,12 +68,44 @@ class ProgressionTest {
         // The first strikes are older than both original tier windows.
         at(37);
         violation(manager, "CAPS", 3);
-        assertEquals(4, manager.getStrikes(id).size());
+        assertEquals(3, manager.getStrikes(id).size());
         assertTrue(manager.getStrikes(id).stream().allMatch(s -> s.expiresAt().equals(start.plusSeconds(57))));
         at(57);
         assertTrue(manager.getStrikes(id).isEmpty());
         violation(manager, "CAPS", 1);
         assertEquals(1, manager.getStrikes(id).size());
+    }
+
+    @Test
+    void oldOversizedFilesAreTrimmedAndRepeatedViolationsStayBounded(@TempDir Path dir) {
+        at(0);
+        File file = dir.resolve("strikes.yml").toFile();
+        List<Strike> old = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            old.add(new Strike(id, ViolationType.CAPS, start, start.plusSeconds(20)));
+        }
+        new StrikeStorage(file, clock).save(java.util.Map.of(id, old));
+        SanctionsManager manager = manager(file, 1);
+        try {
+            assertEquals(3, manager.getStrikes(id).size());
+            for (int i = 0; i < 100; i++) {
+                violation(manager, "CAPS", 3);
+                assertEquals(3, manager.getStrikes(id).size());
+            }
+        } finally {
+            manager.close();
+        }
+        assertEquals(3, new StrikeStorage(file, clock).load().get(id).size());
+    }
+
+    @Test
+    void oneStrikeRuleKeepsOnlyOneEntry() {
+        at(0);
+        SanctionsManager manager = manager(null, 1, 1);
+        for (int i = 0; i < 100; i++) {
+            violation(manager, "SPAM_FLOOD", 1);
+            assertEquals(1, manager.getStrikes(id).size());
+        }
     }
 
     @Test
