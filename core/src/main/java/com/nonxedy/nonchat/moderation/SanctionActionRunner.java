@@ -73,7 +73,6 @@ class SanctionActionRunner {
         Bukkit.getOnlinePlayers().stream()
                 .filter(p -> (permission != null && p.hasPermission(permission)) || p.isOp())
                 .forEach(p -> MessageUtil.send(p, component));
-
     }
 
     // Console logging is per violation, independent of the selected tier and staff actions.

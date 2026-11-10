@@ -241,7 +241,9 @@ public class SanctionsManager {
                     savePending.set(false);
                     saveStrikes();
                 });
-            } catch (RejectedExecutionException ignored) {}
+            } catch (RejectedExecutionException e) {
+                savePending.set(false);
+            }
         }
     }
 
@@ -293,14 +295,14 @@ public class SanctionsManager {
         return rule.block();
     }
 
-    /**
-     * Adds a strike for the violation and returns the heaviest tier the player now qualifies for
-     * @return The tier to apply, or null if no tier has enough strikes yet
-     */
     private long validStrikes(Violation violation) {
         return getStrikes(violation.playerId()).stream().filter(s -> s.type() == violation.type()).count();
     }
 
+    /**
+     * Adds a strike for the violation and returns the heaviest tier the player now qualifies for
+     * @return The tier to apply, or null if no tier has enough strikes yet
+     */
     private SanctionTier registerStrike(Violation violation, ViolationRule rule) {
         if (rule.tiers().isEmpty()) {
             return null;
