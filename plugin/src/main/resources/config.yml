@@ -180,6 +180,10 @@ mentions:
   enabled: true
   # If true, typing an online player's name mentions them even without '@'.
   allow-without-at: false
+  # Prefix that Floodgate/Geyser adds to the names of Bedrock players (the
+  # "username-prefix" option of Floodgate, "." by default). It lets @.Name and
+  # .Name be recognised as mentions. Leave it empty ("") if you use no prefix.
+  bedrock-prefix: "."
   # Notification shown to the mentioned player, written as "<type>:<text>":
   #   message:<text>   - a regular chat message
   #   actionbar:<text> - text above the hotbar

@@ -18,6 +18,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
 
 import com.nonxedy.nonchat.Nonchat;
+import com.nonxedy.nonchat.util.chat.MentionPatterns;
 import com.nonxedy.nonchat.util.chat.filters.CapsFilter;
 import com.nonxedy.nonchat.util.chat.filters.FilterConfigMigration;
 import com.nonxedy.nonchat.util.chat.formatting.ChatTypeUtil;
@@ -79,6 +80,8 @@ public class PluginConfig {
         this.language = config.getString("language", "en");
         // Set default channel
         this.defaultChannel = config.getString("default-channel", "local");
+        // Bedrock name prefix used when detecting mentions
+        MentionPatterns.setBedrockPrefix(getMentionBedrockPrefix());
     }
 
     /**
@@ -458,6 +461,15 @@ public class PluginConfig {
      */
     public boolean isMentionWithoutAtEnabled() {
         return config.getBoolean("mentions.allow-without-at", false);
+    }
+
+    /**
+     * Gets the prefix Floodgate/Geyser adds to Bedrock usernames, so mentions such
+     * as {@code @.Steve} resolve to the online player {@code .Steve}
+     * @return Bedrock name prefix, empty when Bedrock players have none
+     */
+    public String getMentionBedrockPrefix() {
+        return config.getString("mentions.bedrock-prefix", ".");
     }
 
     /**
