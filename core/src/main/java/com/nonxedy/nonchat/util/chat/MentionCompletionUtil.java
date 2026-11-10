@@ -133,6 +133,14 @@ public final class MentionCompletionUtil {
         return MULTI_WHITESPACE_PATTERN.matcher(stripped.toString()).replaceAll(" ").trim();
     }
 
+    /**
+     * Gets the pattern that finds mention tokens ('@name' or a bare 'name'), skipping names that are
+     * part of a link or address (e.g. 'Alex.com', 'https://...', 'Alex:25565').
+     *
+     * <p>The name part depends on the configured Bedrock prefix, which can change on a config reload, so
+     * the compiled pattern is cached and rebuilt only when {@link MentionPatterns#nameRegex()} changes.
+     * Group 1 is the name after an '@', group 2 the bare name.</p>
+     */
     private static Pattern mentionTokenPattern() {
         String name = MentionPatterns.nameRegex();
         Pattern pattern = tokenPattern;
