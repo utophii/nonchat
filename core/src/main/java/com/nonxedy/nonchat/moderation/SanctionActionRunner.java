@@ -58,7 +58,7 @@ class SanctionActionRunner {
         }
         debug.accept("Warning sent to " + player.getName());
 
-        MessageUtil.send(player, render(resolvePlaceholders(player, warnMessage), "%message%", violation.message()));
+        MessageUtil.send(player, render(resolvePlaceholders(player, warnMessage), violation.message()));
     }
 
     private void notifyStaff(Player player, Violation violation, ViolationRule rule) {
@@ -67,7 +67,7 @@ class SanctionActionRunner {
             return;
         }
 
-        Component component = render(resolvePlaceholders(player, template), "{message}", violation.message());
+        Component component = render(resolvePlaceholders(player, template), violation.message());
 
         String permission = rule.staffNotifyPermission();
         Bukkit.getOnlinePlayers().stream()
@@ -81,7 +81,7 @@ class SanctionActionRunner {
         String template = rule.staffNotifyMessage();
         if (rule.consoleNotify() && template != null && !template.isEmpty()) {
             MessageUtil.send(Bukkit.getConsoleSender(),
-                    render(resolvePlaceholders(player, template), "{message}", violation.message()));
+                    render(resolvePlaceholders(player, template), violation.message()));
         }
     }
 
@@ -114,7 +114,7 @@ class SanctionActionRunner {
         return trimmed.startsWith("/") ? trimmed.substring(1).trim() : trimmed;
     }
 
-    private String resolvePlaceholders(Player player, String text) {
+    String resolvePlaceholders(Player player, String text) {
         if (player == null || text == null) return text;
 
         // Check if PlaceholderAPI is loaded
@@ -126,21 +126,18 @@ class SanctionActionRunner {
             }
         }
 
-        // Fall back to standard placeholders if PAPI not available
-        return text.replace("%player_name%", player.getName())
-                .replace("%player_uuid%", player.getUniqueId().toString());
+        return text;
     }
 
     /**
      * Parses a trusted template and inserts the flagged message as literal text, so formatting
      * and MiniMessage tags typed by the player (e.g. click events) are never parsed
      * @param template Template with placeholders already resolved
-     * @param token Token replaced by the message
      * @param message The flagged message
      */
-    static Component render(String template, String token, String message) {
+    static Component render(String template, String message) {
         return ColorUtil.parseComponentCached(template)
-                .replaceText(builder -> builder.matchLiteral(token)
+                .replaceText(builder -> builder.match("%message%|\\{message\\}")
                         .replacement(Component.text(orEmpty(message))));
     }
 

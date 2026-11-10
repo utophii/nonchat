@@ -117,6 +117,11 @@ public class SanctionsManager {
                 strikesFile);
     }
 
+    /** Applies reloaded settings to detector state. */
+    public void reload() {
+        detectors.forEach(ViolationDetector::reload);
+    }
+
     /**
      * Checks a message and applies the sanctions if it violates a rule
      * @param player Player who sent the message

@@ -17,6 +17,9 @@ public interface ViolationDetector {
      */
     String bypassPermission();
 
+    /** Applies reloaded settings to detector state. */
+    default void reload() {}
+
     /**
      * Inspects a message sent by a player
      * @param player Player who sent the message

@@ -435,6 +435,9 @@ public class Nonchat extends JavaPlugin {
 
             if (configService != null) {
                 configService.reload();
+                if (sanctionsManager != null) {
+                    sanctionsManager.reload();
+                }
             }
 
             if (chatColorHook != null) {
@@ -477,6 +480,9 @@ public class Nonchat extends JavaPlugin {
             // Reload configuration
             if (configService != null) {
                 configService.reload();
+                if (sanctionsManager != null) {
+                    sanctionsManager.reload();
+                }
             }
 
             if (chatColorHook != null) {

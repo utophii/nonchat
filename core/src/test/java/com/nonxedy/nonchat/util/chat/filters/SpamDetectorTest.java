@@ -56,6 +56,29 @@ class SpamDetectorTest {
         bukkit.close();
     }
 
+    @Test
+    void reloadUpdatesExistingAndNewHistoryDeadlines() {
+        java.util.concurrent.atomic.AtomicLong nanos = new java.util.concurrent.atomic.AtomicLong();
+        SpamDetector detector = new SpamDetector(config, nanos::get);
+        Player player = mock(Player.class);
+        when(player.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(config.getAntiSpamRepetitiveThreshold()).thenReturn(1);
+        when(config.isAntiSpamSimilarEnabled()).thenReturn(false);
+        when(config.isAntiSpamFloodEnabled()).thenReturn(false);
+        assertFalse(flagged(detector, player, "hello"));
+        nanos.set(java.util.concurrent.TimeUnit.SECONDS.toNanos(100));
+        when(config.getAntiSpamRepetitiveTimeWindow()).thenReturn(300);
+        detector.reload();
+        nanos.set(java.util.concurrent.TimeUnit.SECONDS.toNanos(121));
+        assertTrue(flagged(detector, player, "hello"));
+        when(config.getAntiSpamRepetitiveTimeWindow()).thenReturn(60);
+        detector.reload();
+        assertFalse(flagged(detector, player, "hello"));
+        // The newly created entry also uses the shortened duration.
+        nanos.set(java.util.concurrent.TimeUnit.SECONDS.toNanos(242));
+        assertFalse(flagged(detector, player, "hello"));
+    }
+
     private SpamDetector detector() {
         return new SpamDetector(config);
     }

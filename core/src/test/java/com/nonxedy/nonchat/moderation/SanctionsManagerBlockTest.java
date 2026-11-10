@@ -79,7 +79,7 @@ class SanctionsManagerBlockTest {
             SanctionsManager manager = new SanctionsManager(
                     List.of(detects(ViolationType.CAPS, "HELLO")),
                     new ModerationRuleProvider(config), line -> { }, null);
-            for (String expected : List.of("Default warning", "Warning for Alice: HELLO (70%)", "", "Default warning")) {
+            for (String expected : List.of("Default warning", "Warning for %player_name%: HELLO (70%)", "", "Default warning")) {
                 messages.clearInvocations();
                 assertTrue(manager.process(player, "HELLO"));
                 if (!expected.isEmpty()) {

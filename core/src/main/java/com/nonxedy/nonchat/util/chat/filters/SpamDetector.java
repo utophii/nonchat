@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import org.bukkit.entity.Player;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Ticker;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.nonxedy.nonchat.config.ModerationConfig;
 import com.nonxedy.nonchat.moderation.Violation;
@@ -28,23 +29,28 @@ public class SpamDetector implements ViolationDetector {
     private final Cache<UUID, MessageHistory> messageHistoryCache;
 
     public SpamDetector(ModerationConfig config) {
+        this(config, Ticker.systemTicker());
+    }
+
+    SpamDetector(ModerationConfig config, Ticker ticker) {
         this.config = config;
-        
-        // Initialize cache with expiration based on maximum time window
-        // Use the largest time window from all detection types
-        int maxTimeWindow = Math.max(
-            Math.max(
-                config.getAntiSpamRepetitiveTimeWindow(),
-                config.getAntiSpamSimilarTimeWindow()
-            ),
-            config.getAntiSpamFloodTimeWindow()
-        );
-        
-        // Cache expires after max time window + some buffer (in seconds)
         this.messageHistoryCache = Caffeine.newBuilder()
             .maximumSize(10000)
-            .expireAfterWrite(maxTimeWindow + 60, TimeUnit.SECONDS)
+            .ticker(ticker)
+            .expireAfterWrite(retentionSeconds(), TimeUnit.SECONDS)
             .build();
+    }
+
+    private long retentionSeconds() {
+        return 60L + Math.max(config.getAntiSpamRepetitiveTimeWindow(),
+                Math.max(config.getAntiSpamSimilarTimeWindow(), config.getAntiSpamFloodTimeWindow()));
+    }
+
+    @Override
+    public void reload() {
+        // Updating the policy also changes deadlines of existing entries, keeping their write times.
+        messageHistoryCache.policy().expireAfterWrite().orElseThrow()
+                .setExpiresAfter(retentionSeconds(), TimeUnit.SECONDS);
     }
 
     @Override
