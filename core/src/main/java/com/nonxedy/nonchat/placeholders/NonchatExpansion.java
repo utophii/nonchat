@@ -71,7 +71,7 @@ public class NonchatExpansion extends PlaceholderExpansion {
             case "bubble_enabled" -> plugin.getConfigService().getConfig().isChatBubblesEnabled() ?
                 ColorUtil.parseColor(plugin.getConfigService().getMessages().getString("placeholders.bubble.enabled")) :
                 ColorUtil.parseColor(plugin.getConfigService().getMessages().getString("placeholders.bubble.disabled"));
-            case "caps_filter_enabled" -> plugin.getConfigService().getConfig().isCapsFilterEnabled() ?
+            case "caps_filter_enabled" -> plugin.getConfigService().getModeration().getCapsFilter().isEnabled() ?
                 ColorUtil.parseColor(plugin.getConfigService().getMessages().getString("placeholders.caps-filter.enabled")) :
                 ColorUtil.parseColor(plugin.getConfigService().getMessages().getString("placeholders.caps-filter.disabled"));
             case "ignored" -> plugin.getIgnoreCommand().isIgnoringAnyone(player) ?
