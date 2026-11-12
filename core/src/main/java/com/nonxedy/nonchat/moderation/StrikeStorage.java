@@ -33,6 +33,7 @@ class StrikeStorage {
 
     private final File file;
     private final Clock clock;
+    private boolean writesBlocked;
 
     StrikeStorage(File file) {
         this(file, Clock.systemUTC());
@@ -45,9 +46,9 @@ class StrikeStorage {
 
     /**
      * Reads the strikes that are still valid. Entries that cannot be read are skipped.
-     * An unreadable file is left untouched and treated as empty.
+     * An unreadable file is moved aside and treated as empty. If preservation fails, saves are disabled.
      */
-    Map<UUID, List<Strike>> load() {
+    synchronized Map<UUID, List<Strike>> load() {
         Map<UUID, List<Strike>> result = new HashMap<>();
         if (!file.exists()) {
             return result;
@@ -59,6 +60,15 @@ class StrikeStorage {
         } catch (IOException | InvalidConfigurationException e) {
             LOGGER.log(Level.WARNING, "[nonchat] Could not read {0}, starting without strikes: {1}",
                     new Object[] {file.getName(), e.getMessage()});
+            try {
+                File backup = new File(file.getParentFile(), file.getName() + ".unreadable-" + UUID.randomUUID());
+                Files.move(file.toPath(), backup.toPath());
+                LOGGER.log(Level.WARNING, "[nonchat] Preserved unreadable strikes in {0}", backup.getName());
+            } catch (IOException preservationError) {
+                writesBlocked = true;
+                LOGGER.log(Level.SEVERE, "[nonchat] Could not preserve unreadable strikes, saves disabled until restart: {0}",
+                        preservationError.getMessage());
+            }
             return result;
         }
 
@@ -89,6 +99,7 @@ class StrikeStorage {
      * Writes the strikes that are still valid, replacing the file atomically
      */
     synchronized void save(Map<UUID, List<Strike>> strikes) {
+        if (writesBlocked) return;
         Instant now = clock.instant();
         YamlConfiguration yaml = new YamlConfiguration();
         strikes.forEach((playerId, list) -> {

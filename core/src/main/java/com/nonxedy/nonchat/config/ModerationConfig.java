@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
@@ -28,6 +29,7 @@ public class ModerationConfig {
     private final PluginMessages messages;
     private final File file;
     private volatile FileConfiguration config = new YamlConfiguration();
+    private boolean hasValidConfig;
 
     public ModerationConfig(Nonchat plugin, PluginMessages messages) {
         this.plugin = plugin;
@@ -45,12 +47,39 @@ public class ModerationConfig {
             if (!ModerationMigrator.migrate(configFile, file, messages, readTemplate())) {
                 plugin.saveResource(FILE_NAME, false);
             }
-        } else {
-            // Add the keys introduced by newer versions, keeping the user's values
-            ConfigUpdater.updateFile(plugin, file, FILE_NAME, null);
         }
-        this.config = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration loaded = new YamlConfiguration();
+        try {
+            // validate before the updater can write anything to the file
+            loaded.load(file);
+            ConfigUpdater.updateFile(plugin, file, FILE_NAME, null);
+            loaded = new YamlConfiguration();
+            loaded.load(file);
+        } catch (IOException | InvalidConfigurationException e) {
+            plugin.getLogger().log(Level.SEVERE, "Could not load moderation.yml, keeping working settings or bundled defaults", e);
+            if (!hasValidConfig) {
+                loadDefaults();
+            }
+            return;
+        }
+        this.config = loaded;
+        this.hasValidConfig = true;
         plugin.getLogger().log(Level.FINE, "Loaded {0}", FILE_NAME);
+    }
+
+    private void loadDefaults() {
+        String template = readTemplate();
+        if (template == null) {
+            throw new IllegalStateException("Bundled moderation.yml is unavailable");
+        }
+        YamlConfiguration defaults = new YamlConfiguration();
+        try {
+            defaults.loadFromString(template);
+        } catch (InvalidConfigurationException e) {
+            throw new IllegalStateException("Bundled moderation.yml is invalid", e);
+        }
+        config = defaults;
+        hasValidConfig = true;
     }
 
     private String readTemplate() {
