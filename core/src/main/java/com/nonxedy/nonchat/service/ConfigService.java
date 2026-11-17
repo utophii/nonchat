@@ -23,9 +23,13 @@ public class ConfigService implements IConfigurable {
 
     public ConfigService(Nonchat plugin) {
         this.plugin = plugin;
-        this.config = new PluginConfig(plugin);
         this.messages = new PluginMessages(plugin);
         this.moderation = new ModerationConfig(plugin, messages);
+        // The moderation migration backs up the untouched config.yml, so it has to run before
+        // PluginConfig is created: its updater rewrites config.yml when keys were added
+        messages.loadLanguage();
+        moderation.load();
+        this.config = new PluginConfig(plugin);
         load();
         this.messages.loadLanguage();
     }
