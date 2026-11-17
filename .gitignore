@@ -29,3 +29,6 @@ replay_pid*
 
 # VSCode directory
 .vscode/
+# IntelliJ IDEA
+.idea/
+*.iml
