@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -157,10 +158,16 @@ public final class ConfigUpdater {
         }
 
         String build(String[] lines) {
+            int listIndent = -1;
             for (int i = 0; i < lines.length; i++) {
                 String line = lines[i];
-                // List items are written from the user's value together with their key
+                // List items are written from the user's value together with their key,
+                // including the lines of an item that is a mapping
                 if (isListContent(line)) continue;
+                if (listIndent >= 0) {
+                    if (!line.isBlank() && !isComment(line) && countLeadingSpaces(line) > listIndent) continue;
+                    listIndent = -1;
+                }
 
                 int spaces = countLeadingSpaces(line);
                 boolean isEntry = !line.isBlank() && !isComment(line) && line.contains(":");
@@ -181,6 +188,9 @@ public final class ConfigUpdater {
                 String afterColon = split[1].trim();
                 boolean isHeader = afterColon.isEmpty() || isComment(afterColon);
                 boolean isList = isHeader && i + 1 < lines.length && isListContent(lines[i + 1]);
+                if (isList) {
+                    listIndent = spaces;
+                }
 
                 int point = spaces / 2;
                 String path = buildPath(point, identifier);
@@ -259,6 +269,10 @@ public final class ConfigUpdater {
 
                 out.append("\n");
                 for (Object item : list) {
+                    if (item instanceof Map<?, ?> map) {
+                        appendMapItem(map, indent);
+                        continue;
+                    }
                     appendIndent(indent + 2);
                     out.append("- ").append(formatScalar(item)).append("\n");
                 }
@@ -266,6 +280,25 @@ public final class ConfigUpdater {
             }
 
             out.append(" ").append(formatScalar(value)).append("\n");
+        }
+
+        /** Writes a list item that is a mapping, e.g. a moderation tier */
+        private void appendMapItem(Map<?, ?> map, int indent) {
+            appendIndent(indent + 2);
+            out.append("- ");
+            if (map.isEmpty()) {
+                out.append("{}\n");
+                return;
+            }
+
+            boolean first = true;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (!first) {
+                    appendIndent(indent + 4);
+                }
+                out.append(entry.getKey()).append(": ").append(formatInline(entry.getValue())).append("\n");
+                first = false;
+            }
         }
 
         private String buildPath(int point, String identifier) {
@@ -280,6 +313,13 @@ public final class ConfigUpdater {
         private void appendIndent(int spaces) {
             out.append(" ".repeat(Math.max(0, spaces)));
         }
+    }
+
+    private static String formatInline(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream().map(ConfigUpdater::formatScalar).collect(Collectors.joining(", ", "[", "]"));
+        }
+        return formatScalar(value);
     }
 
     static String formatScalar(Object value) {

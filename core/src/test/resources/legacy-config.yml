@@ -1,0 +1,605 @@
+# ==================================================
+# NONCHAT CONFIGURATION FILE
+# Plugin created by utophii (@utophii).
+# Published on github https://github.com/utophii/nonchat
+# Published on modrinth https://modrinth.com/plugin/nonchat
+# Version of the plugin: ${project.version}
+#
+# - LuckPerms support.
+# - Vault support.
+# - PlaceHolderAPI support.
+# - DiscordSRV support.
+# - BusyBee ChatColor support (native component API).
+# ==================================================
+
+# ==================================================
+# GENERAL PLUGIN SETTINGS
+# ==================================================
+
+# Supported languages: en, ru, es
+language: en
+
+# Enable/disable debug mode for detailed console logs.
+debug: false
+
+# Enable/disable the automatic update checker.
+update-checker: true
+
+# Default channel that players will join upon entering the server.
+default-channel: "local"
+
+# ==================================================
+# OPTIONAL INTEGRATIONS
+# ==================================================
+integrations:
+  chatcolor:
+    # BusyBee ChatColor: apply the player's current selection/default through its
+    # public API to channel message bodies (including staff chat).
+    # No %chatcolor_message% placeholder or chat event priority changes are needed.
+    # nonchat.color still controls manually entered formatting, not this selection.
+    # ChatColor's settings.apply-to-message is also respected.
+    enabled: true
+
+# ==================================================
+# MESSAGE DELIVERY NOTIFICATIONS
+# Controls whether players are notified when their messages are not delivered.
+# ==================================================
+message-delivery:
+  # If true, players will be notified when their message doesn't reach anyone.
+  notify-undelivered: true
+
+# ==================================================
+# INTERACTIVE PLACEHOLDERS
+# Configure interactive placeholders that enhance chat with dynamic content.
+# ==================================================
+interactive-placeholders:
+  # Enable/disable all interactive placeholders.
+  enabled: true
+
+  # ==================================================
+  # CUSTOM INTERACTIVE PLACEHOLDERS
+  # Define your own interactive placeholders here.
+  # Each placeholder can have custom activation name, format, hover text, click actions, and permissions.
+  #
+  # Activation: Use [placeholder] in chat to activate (e.g., [loc] activates location placeholder)
+  # Available Variables in format and hover-text:
+  #   Basic: {player}, {world}, {x}, {y}, {z}, {server_name}, {online_players}, {max_players}
+  #   Item (for item placeholder): {item_name}, {item_id}, {item_amount}, {item_lore}, {item_enchantments}, {item_durability}
+  #   Ping (for ping placeholder): {ping}, {ping_quality}
+  # Click Action Types: command, suggest_command, open_url, none
+  # ==================================================
+  custom-placeholders:
+    # Built-in item placeholder - shows held item with customizable format and hover info
+    item:
+      enabled: true
+      placeholder: "item"  # Activated by [item] in chat
+      display-name: "Held Item"
+      description: "Shows the item currently held in main hand with customizable format and hover information"
+      permission: ""
+      format: "&f[{item_name}]"
+      hover-text:
+        - "&#FFAFFBItem ID: &f{item_id}"
+        - "&#FFAFFBAmount: &f{item_amount}"
+        - "&#FFAFFBLore: &f{item_lore}"
+        - "&#FFAFFBEnchantments: &f{item_enchantments}"
+        - "&#FFAFFBDurability: &f{item_durability}"
+      click-action:
+        type: "none"
+
+    # Built-in ping placeholder - shows connection latency with color coding
+    ping:
+      enabled: true
+      placeholder: "ping"  # Activated by [ping] in chat
+      display-name: "Player Ping"
+      description: "Shows current ping in milliseconds with color-coded status"
+      permission: ""
+      format: "{ping}ms"
+      hover-text:
+        - "Current ping: {ping}ms"
+        - "Connection quality: {ping_quality}"
+      click-action:
+        type: "none"
+
+    # Example: Location placeholder with teleport functionality
+    location:
+      enabled: false  # Set to true to enable
+      placeholder: "loc"  # Activated by [loc] in chat
+      display-name: "Player Location"
+      description: "Shows the player's current location"
+      permission: ""
+      format: "&#FFAFFB[📍]"
+      hover-text:
+        - "Current location: {world}, {x}, {y}, {z}"
+        - "Click to teleport!"
+      click-action:
+        type: "command"
+        value: "/tp {player} {x} {y} {z}"
+
+    # Example: Inventory inspection placeholder
+    inventory:
+      enabled: false  # Set to true to enable
+      placeholder: "inv"  # Activated by [inv] in chat
+      display-name: "Player Inventory"
+      description: "Click to view player's inventory"
+      permission: "nonchat.placeholders.inventory"
+      format: "&#FFAFFB[📦]"
+      hover-text:
+        - "Click to view inventory"
+        - "Player: {player}"
+      click-action:
+        type: "command"
+        value: "/invsee {player}"
+
+    # Example: Server information placeholder
+    server:
+      enabled: false  # Set to true to enable
+      placeholder: "server"  # Activated by [server] in chat
+      display-name: "Server Info"
+      description: "Shows server information"
+      permission: ""
+      format: "&#FFAFFB[🏠]"
+      hover-text:
+        - "Server: {server_name}"
+        - "Online: {online_players}/{max_players}"
+        - "Version: {server_version}"
+      click-action:
+        type: "none"
+
+# ==================================================
+# MENTION SOUNDS
+# Configure sound settings when players are mentioned in chat.
+# ==================================================
+mention-sounds:
+  # Enable/disable sound when player is mentioned.
+  enabled: true
+  # Sound to play when player is mentioned. Leave empty to disable.
+  sound: "entity.experience_orb.pickup"
+  # Volume of the mention sound (0.0 to 1.0).
+  volume: 1.0
+  # Pitch of the mention sound (0.5 to 2.0).
+  pitch: 1.0
+
+# ==================================================
+# MENTION COLORS
+# Configure colors for mentions in chat messages.
+# ==================================================
+mention-colors:
+  # Enable/disable mention coloring for the sender.
+  enabled: true
+  # Color to apply to @mentions in the sender's message.
+  color: "&#FFAFFB"
+
+# ==================================================
+# MENTIONS
+# Configure how players can be mentioned in chat.
+# ==================================================
+mentions:
+  # Master switch for the whole mention system. When false, @mentions will
+  # not color names, play sounds, show "you were mentioned" notifications,
+  # or offer @name tab-completions.
+  enabled: true
+  # If true, typing an online player's name mentions them even without '@'.
+  allow-without-at: false
+  # Notification shown to the mentioned player, written as "<type>:<text>":
+  #   message:<text>   - a regular chat message
+  #   actionbar:<text> - text above the hotbar
+  #   title:<text>     - a title on screen ("titlebar" works too)
+  #   bossbar:<text>   - a boss bar at the top of the screen
+  # Leave it empty ("") or set it to "none" to show nothing at all. Any other
+  # value without one of the four types above is ignored with a console warning.
+  # The sound from 'mention-sounds' is independent and keeps playing even when
+  # this value is empty.
+  #
+  # Options are appended to the text with a "|" separator:
+  #   title:&#84FFB8You were mentioned!|subtitle:&#ffffffby {player}|fadein:10|stay:70|fadeout:20
+  #   bossbar:&#84FFB8{player} mentioned you|color:pink|overlay:progress|progress:1.0|duration:5
+  #   actionbar:&#84FFB8{player} mentioned you!
+  # Title options: subtitle, fadein, stay and fadeout (all in ticks).
+  # Boss bar options: color (pink, blue, red, green, yellow, purple, white),
+  #   overlay (progress, notched_6, notched_10, notched_12, notched_20),
+  #   progress (0.0 - 1.0) and duration (seconds the bar stays visible).
+  mention-message: "message:&#ffffffYou were mentioned in chat by &#84FFB8%player_name%!"
+
+# ==================================================
+# CUSTOM CHANNELS
+# Define chat channels with unique settings.
+#
+# You can create new channels by copying an existing block or using the command:
+# /channel create <id> <display-name> [options]
+#
+# Channel Options:
+#   enabled: (true/false) - Enable or disable the channel.
+#   display-name: ("Name") - Name shown in messages.
+#   format: ("text {placeholders}") - Message format (must include {message}).
+#   radius: (number, 'world', list of worlds, or map) - Chat radius in blocks. -1 for global, 'world' or list/map of worlds for world-only/multi-world.
+#   For multi-world chat radius use this:
+#     radius:
+#       world1: number
+#       world2: number
+#   character: ('X') - Prefix character to talk in this channel.
+#   send-permission: ("permission.node") - Permission required to send messages.
+#   receive-permission: ("permission.node") - Permission required to receive messages.
+#   cooldown: (number) - Seconds between messages. 0 for no cooldown.
+#   min-length: (number) - Minimum message length. 0 for no minimum.
+#   max-length: (number) - Maximum message length. -1 for unlimited.
+# ==================================================
+channels:
+  # The ID of the channel.
+  global:
+    # Enable/disable the channel.
+    enabled: true
+    # Display name for the channel.
+    display-name: "Global"
+    # The chat format. Use {message} for the message content.
+    format: "§7(§6G§7)§r %luckperms_prefix% §f%player_name%§r %luckperms_suffix%§7: §f{message}"
+    # The radius of chat in blocks. -1 for global.
+    radius: -1
+    # The character that triggers this channel.
+    character: '!'
+    # Permission to send messages in this channel (empty for everyone).
+    send-permission: ""
+    # Permission to receive messages from this channel (empty for everyone).
+    receive-permission: ""
+    # Cooldown between messages in seconds (0 for no cooldown).
+    cooldown: 0
+    # Minimum message length (0 for no minimum).
+    min-length: 0
+    # Maximum message length (-1 to disable limit).
+    max-length: -1
+    # Message sent to the player when switching to this channel ("" for no message).
+    switch-message: ""
+  
+  local:
+    enabled: true
+    display-name: "Local"
+    format: "§7(§6L§7)§r %luckperms_prefix% §f%player_name%§r %luckperms_suffix%§7: §f{message}"
+    radius: 100
+    character: ''
+    send-permission: ""
+    receive-permission: ""
+    cooldown: 0
+    min-length: 0
+    max-length: -1
+    switch-message: ""
+  
+  staff:
+    enabled: true
+    display-name: "Staff"
+    format: "§7(§bSC§7)§r %luckperms_prefix% §f%player_name%§r %luckperms_suffix%§7: §f{message}"
+    radius: -1
+    character: '!staff' # Supports any string without spaces (up to 10 characters)
+    send-permission: "nonchat.chat.staff"
+    receive-permission: "nonchat.chat.staff"
+    cooldown: 0
+    min-length: 0
+    max-length: -1
+    switch-message: ""
+  
+
+# ==================================================
+# JOIN & QUIT MESSAGES
+# ==================================================
+join-messages:
+  # Enable/disable custom join messages.
+  enabled: true
+  # The format for the join message.
+  format: "§8(§a+§8) %luckperms_prefix% §f%player_name%§r %luckperms_suffix%"
+  # The format for the first join message (shown only once per player).
+  first-join-format: "§8(§a+§8) §f%player_name%§r §7joined for the first time!"
+  # Enable/disable sound when player joins.
+  sound-enabled: true
+  # Sound to play when player joins (Minecraft sound names).
+  sound: "entity.experience_orb.pickup"
+  # Volume of the join sound (0.0 to 1.0).
+  sound-volume: 1.0
+  # Pitch of the join sound (0.5 to 2.0).
+  sound-pitch: 1.0
+
+quit-messages:
+  # Enable/disable custom quit messages.
+  enabled: true
+  # The format for the quit message.
+  format: "§8(§c-§8) %luckperms_prefix% §f%player_name%§r %luckperms_suffix%"
+  # Enable/disable sound when player quits.
+  sound-enabled: true
+  # Sound to play when player quits (Minecraft sound names).
+  sound: "entity.villager.no"
+  # Volume of the quit sound (0.0 to 1.0).
+  sound-volume: 1.0
+  # Pitch of the quit sound (0.5 to 2.0).
+  sound-pitch: 1.0
+
+# ==================================================
+# PRIVATE CHAT (MESSAGES)
+# ==================================================
+private-chat:
+  # Enable/disable private messages (/msg, /reply).
+  enabled: true
+  sender:
+    # Format for the message seen by the sender.
+    format: "§8[§fYou §8-> §f{receiver}§8] §f{message}"
+    hover:
+      # Enable/disable hover text on the sender's message.
+      enabled: true
+      # Text to display on hover.
+      text:
+        - "§7Sent to §f{receiver}"
+        - "§8Click to reply"
+  receiver:
+    # Format for the message seen by the receiver.
+    format: "§8[§f{sender} §f-> §fYou§8] §f{message}"
+    hover:
+      # Enable/disable hover text on the receiver's message.
+      enabled: true
+      # Text to display on hover.
+      text:
+        - "§7From §f{sender}"
+        - "§8Click to reply"
+  
+  click-actions:
+    # Enable/disable click-to-reply functionality on private messages.
+    enabled: true
+    # Command executed when clicking to reply on the receiver's message.
+    # Use {sender} for the player who sent the message and {receiver} for the recipient.
+    receiver-reply-command: "/msg {sender} "
+    # Command executed when clicking to reply on the sender's own message.
+    # Defaults to targeting the receiver so the sender replies to the right person.
+    sender-reply-command: "/msg {receiver} "
+
+  # Sound to play when a private message is received. Leave empty to disable.
+  sound: ""
+  # Volume of the private message sound (0.0 to 1.0).
+  sound-volume: 1.0
+  # Pitch of the private message sound (0.5 to 2.0).
+  sound-pitch: 1.0
+
+  # Optionally restrict private messages and their player tab-completions by world.
+  world-separation:
+    enabled: false
+    # Worlds in the same group can message one another. Worlds not listed in a
+    # group are isolated to their exact world. World names are case-insensitive.
+    groups:
+      main:
+        - world
+        - world_nether
+        - world_the_end
+      # Example: a player in world1 can only message another player in world1.
+      # world1:
+      #   - world1
+
+# ==================================================
+# SPY COMMAND
+# ==================================================
+# Format for messages seen by players using spy mode.
+spy-format: "§f{sender} §7-> §f{target}§7: §7{message}"
+
+# ==================================================
+# BROADCAST CONFIGURATION
+# ==================================================
+broadcast:
+  # Format for broadcast messages. Use {message} for content and \n for new lines.
+  format: "\n§#FFAFFBBroadcast: §f{message}\n"
+  # Enable/disable randomization of auto-broadcast messages.
+  random: true
+  # Sound to play when a broadcast is received. Leave empty to disable.
+  sound: ""
+  # Volume of the broadcast sound (0.0 to 1.0).
+  sound-volume: 1.0
+  # Pitch of the broadcast sound (0.5 to 2.0).
+  sound-pitch: 1.0
+
+  # Example auto-broadcast message. You can add more by copying this section.
+  example:
+    # Enable/disable this specific broadcast.
+    enabled: true
+    # The message to be broadcasted.
+    message: "&#FFAFFBThis message is sent every &#E625DD5&#FFAFFB minutes. You can change the interval in the &#E625DDbroadcast.example.interval&#FFAFFB setting."
+    # Interval in seconds for this message to be sent.
+    interval: 300
+    # Whether if this message should be displayed in console or not
+    display-in-console: true
+
+# ==================================================
+# CHAT BUBBLE CONFIGURATION
+# Messages that appear above a player's head.
+# ==================================================
+chat-bubbles:
+  # Enable/disable chat bubbles.
+  enabled: true
+  # Duration of the bubble in seconds.
+  duration: 5
+  # Height of the bubble above the player's head in blocks.
+  height: 2.5
+  # Overall scale of the chat bubble (1.0 = normal size).
+  scale: 1.0
+  # Individual axis scale multipliers (1.0 = normal size).
+  scale-x: 1.0
+  scale-y: 1.0
+  scale-z: 1.0
+  # Background color of the chat bubble (hex and argb color code, e.g., #000000 for black, #00000000 for transparent).
+  background-color: "#00000000"
+
+# ==================================================
+# ROLEPLAY COMMANDS
+# ==================================================
+roleplay-commands:
+  # Configuration for the /me command.
+  me:
+    # Enable/disable the /me command.
+    enabled: true
+    # The format of the /me message.
+    format: "&7*%player_name%: {message}"
+  # Configuration for the /roll command.
+  roll:
+    # Enable/disable the /roll command.
+    enabled: true
+    # The format of the /roll message.
+    format: "&7*%player_name% rolled a {number}"
+
+# ==================================================
+# HOVER TEXT
+# Text that appears when hovering over a player's name in chat.
+# ==================================================
+hover-text:
+  # Enable/disable the hover text feature.
+  enabled: true
+  # The lines of text to display on hover. Supports PlaceholderAPI placeholders.
+  format:
+    - "&#FFAFFB⭐ %player_name%" # Player name
+    - "&#FFAFFB► Rank: &#FFFFFF%luckperms_prefix%" # Prefix in luckperms
+    - "&#FFAFFB► Balance: &#FFFFFF$%vault_eco_balance%" # Balance in vault
+    - "&#FFAFFB► Level: &#FFFFFF%player_level%" # Level in minecraft
+    - "&#FFAFFB► Playtime: &#FFFFFF%statistic_time_played%" # Playtime in PlaceholderAPI
+    - "&#FFAFFB► Location: &#FFFFFF%player_world%" # Location in PlaceholderAPI
+    - "&#FFAFFB► Ping: &#FFFFFF%player_ping%ms" # Ping in PlaceholderAPI
+    - "§7"
+    - "§8Click to send a private message"
+  # Command suggested when a player clicks a name in chat.
+  # Set to "" to disable the click-to-message action.
+  click-command: "/m %player_name% "
+
+# ==================================================
+# CHAT FILTERS
+# Every filter (including each anti-spam detector) supports:
+#   enabled: enable detection
+#   message: player warning; "" disables, "@language" uses the language file
+#   notify-message: staff/console template; "" disables, "@language" uses the language file
+#   console-notify: log independently of notify-staff
+#   actions: block, notify-staff, or console commands (without /)
+# Without block, violations are reported but the message is allowed.
+# Templates: {player}, %player_name%, %player_uuid%, {message} / %message%, PlaceholderAPI.
+# Commands support player/PAPI placeholders, NOT raw message substitution.
+# Staff permissions: nonchat.wordblocker.notify, nonchat.caps.notify,
+# nonchat.ad.notify, nonchat.spam.notify. Operators also receive notifications.
+# ==================================================
+banned-words:
+  enabled: true
+  message: "&#ff0000You are not allowed to use this word!"
+  notify-message: "@language"
+  console-notify: true
+  actions:
+    - block
+    - notify-staff
+
+  # List of banned words (simple text matching, case-insensitive).
+  words:
+    - "spam"
+    - "badword"
+    - "anotherbadword"
+    - "плохой"
+
+  # If true, banned words match only as whole words ("ass" won't match "class").
+  # If false, they match anywhere inside a word.
+  whole-words: false
+
+  # Words that are allowed even though they contain a banned word, e.g. "class" for "ass".
+  # Matched as substrings, case-insensitive. Applies to 'words' only, not to 'patterns'.
+  exceptions: []
+
+  # List of regex patterns for advanced filtering (case-insensitive).
+  # Examples:
+  #   - '.*\btest\b.*' - matches any message containing the word "test"
+  #   - '.*\d{4,}.*' - matches any message containing 4 or more consecutive digits
+  #   - '.*http[s]?://.*' - matches URLs starting with http:// or https://
+  #   - '.*\b(word1|word2|word3)\b.*' - matches any of the specified words
+  patterns:
+    - '.*\btest\b.*'
+    - '.*\d{4,}.*'
+
+# ==================================================
+# CAPS FILTER
+# Limits the use of excessive capital letters in messages.
+# ==================================================
+caps-filter:
+  # Enable/disable the caps filter.
+  enabled: true
+  message: "@language"
+  notify-message: "&c{player} used excessive caps: {message}"
+  console-notify: false
+  actions:
+    - block
+  # Maximum percentage of capital letters allowed in a message.
+  max-caps-percentage: 70
+  # Minimum message length to check for caps.
+  min-length: 4
+
+# ==================================================
+# ANTI-ADVERTISEMENT SYSTEM  
+# Blocks server advertisements in chat.
+# ==================================================
+anti-ad:
+  # Enable/disable the anti-advertisement filter.
+  enabled: true
+  message: "@language"
+  notify-message: '&#FFAFFB[nonchat] &f%player_name% posted advertisement: &#ff0000{message}'
+  console-notify: true
+  actions:
+    - block
+    - notify-staff
+    - "ban %player_name% advertising"
+
+  # Detection sensitivity (0.0-1.0). Higher values may cause false positives.
+  # 0.0-0.24: explicit URLs only; 0.25+: bare domains/IPs; 0.5+: common ad phrases.
+  sensitivity: 0.7
+  # URL/domain rules for the anti-ad filter.
+  # A bare domain whitelists itself and all subdomains (for example, example.com also allows mc.example.com).
+  # Use *.example.com to whitelist subdomains only.
+  # URL rules with a path remain limited to that exact URL, as in this Discord invite example.
+  # Links not matched by a whitelist rule are blocked by the anti-ad filter as usual.
+  whitelisted-urls:
+    - "discord.gg/NAWsxe3J3R"
+  # Refresh the TLD registry from the network on startup and on /nonchat
+  # reload (asynchronously, chat is never blocked). Until the download
+  # succeeds - or when it fails - the registry snapshot bundled in the jar
+  # is used, so the filter works fully offline.
+  update-tld-list: true
+  # Source of the TLD registry. Any mirror of the official IANA
+  # tlds-alpha-by-domain.txt file works (for example, your own CDN copy).
+  tld-list-url: "https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
+
+# ==================================================
+# ANTI-SPAM SYSTEM
+# Intelligent spam detection with contextual analysis.
+# Detects repetitive messages, similar messages, and message flooding.
+# ==================================================
+anti-spam:
+  enabled: true
+
+  # Exact duplicate messages.
+  repetitive:
+    enabled: true
+    message: "&cPlease do not send the same message repeatedly!"
+    notify-message: "@language"
+    console-notify: true
+    actions:
+      - block
+      - notify-staff
+    # Maximum identical messages within the window (seconds).
+    threshold: 3
+    time-window: 10
+
+  # Similar messages, ignoring mentions and formatting.
+  similar:
+    enabled: true
+    message: "&cPlease do not send similar messages repeatedly!"
+    notify-message: "@language"
+    console-notify: true
+    actions:
+      - block
+      - notify-staff
+    # Similarity from 0.0 to 1.0; higher values require a closer match.
+    threshold: 0.85
+    time-window: 30
+
+  # Too many messages within a short time window.
+  flood:
+    enabled: true
+    message: "&cYou are sending messages too quickly! Please slow down."
+    notify-message: "@language"
+    console-notify: true
+    actions:
+      - block
+      - notify-staff
+      - "tell %player_name% Slow down!"
+    max-messages: 5
+    time-window: 5

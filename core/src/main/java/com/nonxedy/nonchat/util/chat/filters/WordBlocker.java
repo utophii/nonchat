@@ -2,6 +2,7 @@ package com.nonxedy.nonchat.util.chat.filters;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -10,28 +11,22 @@ import java.util.regex.PatternSyntaxException;
 
 import org.bukkit.entity.Player;
 
-import com.nonxedy.nonchat.api.MessageFilter;
-import com.nonxedy.nonchat.config.PluginConfig;
-import com.nonxedy.nonchat.config.PluginMessages;
+import com.nonxedy.nonchat.config.ModerationConfig;
+import com.nonxedy.nonchat.moderation.Violation;
+import com.nonxedy.nonchat.moderation.ViolationDetector;
+import com.nonxedy.nonchat.moderation.ViolationType;
 import com.nonxedy.nonchat.util.chat.MentionCompletionUtil;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 
 
 /**
- * Handles message filtering by checking for banned words and regex patterns.
- * When a violation is detected, executes the actions configured under
- * 'banned-words.actions' (special actions 'block' and 'notify-staff', plus
- * arbitrary console commands) and sends the configured warning message to the player.
+ * Detects messages containing banned words and regex patterns.
+ * Reports a {@link ViolationType#BANNED_WORD} violation; the sanction tiers configured under
+ * 'banned-words' and the warning message are applied by the SanctionsManager.
  */
-public class WordBlocker implements MessageFilter {
+public class WordBlocker implements ViolationDetector {
 
-    @Override
-    public boolean shouldFilter(Player player, String message) {
-        return checkAndHandle(player, message);
-    }
-
-    private final PluginConfig config;
-    private final PluginMessages messages;
+    private final ModerationConfig config;
     private final Supplier<List<String>> bannedWords;
     private final Supplier<List<String>> bannedPatterns;
     private final BooleanSupplier wholeWords;
@@ -39,13 +34,11 @@ public class WordBlocker implements MessageFilter {
     private volatile CompiledRules compiledRules;
 
     /**
-     * Creates a fully-featured word blocker that executes configured actions on detection.
-     * @param config Plugin configuration
-     * @param messages Plugin messages
+     * Creates a word blocker that reads its rules from the moderation config.
+     * @param config Moderation configuration
      */
-    public WordBlocker(PluginConfig config, PluginMessages messages) {
+    public WordBlocker(ModerationConfig config) {
         this.config = config;
-        this.messages = messages;
         this.bannedWords = config::getBannedWords;
         this.bannedPatterns = config::getBannedPatterns;
         this.wholeWords = config::isBannedWordsWholeWords;
@@ -71,40 +64,35 @@ public class WordBlocker implements MessageFilter {
     public WordBlocker(List<String> bannedWords, List<String> bannedPatterns,
                        boolean wholeWords, List<String> exceptions) {
         this.config = null;
-        this.messages = null;
         this.bannedWords = () -> bannedWords;
         this.bannedPatterns = () -> bannedPatterns;
         this.wholeWords = () -> wholeWords;
         this.exceptions = () -> exceptions;
     }
 
+    @Override
+    public String bypassPermission() {
+        return "nonchat.antiblockedwords";
+    }
+
     /**
-     * Checks a message and, when it contains banned content, executes the configured actions.
-     * Requires the blocker to be created with the PluginConfig/PluginMessages constructor.
+     * Checks a message for banned content.
      * @param player Player who sent the message
      * @param message Original message as typed by the player
-     * @return true if the message is blocked, false if it is allowed
+     * @return a BANNED_WORD violation if the message is blocked, empty if it is allowed
      */
-    public boolean checkAndHandle(Player player, String message) {
-        if (config == null || messages == null) {
-            throw new IllegalStateException("checkAndHandle requires the PluginConfig/PluginMessages constructor");
-        }
-        if (!config.isWordBlockingEnabled()) {
-            return false;
-        }
-        if (player == null || player.hasPermission("nonchat.antiblockedwords")) {
-            return false;
+    @Override
+    public Optional<Violation> inspect(Player player, String message) {
+        if (config != null && !config.isWordBlockingEnabled()) {
+            return Optional.empty();
         }
 
         // Check blocked words on the message without color codes
         if (isMessageAllowed(ColorUtil.stripFormatting(message))) {
-            return false;
+            return Optional.empty();
         }
 
-        return FilterActionHandler.handle(config, player, message,
-                FilterSettings.read(config.getConfig(), "banned-words", config.getBannedWordsActions(),
-                        config.getBannedWordsMessage(), messages.getString("banned-words-detected"),
-                        config.isBannedWordsConsoleNotifyEnabled(), "nonchat.wordblocker.notify"));
+        return Optional.of(new Violation(ViolationType.BANNED_WORD, player.getUniqueId(), message));
     }
 
     /**

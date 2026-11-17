@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +34,10 @@ import com.nonxedy.nonchat.api.event.NonchatPrivateMessageEvent;
 import com.nonxedy.nonchat.api.event.NonchatPrivateMessageSentEvent;
 import com.nonxedy.nonchat.command.impl.IgnoreCommand;
 import com.nonxedy.nonchat.command.impl.SpyCommand;
+import com.nonxedy.nonchat.config.ModerationConfig;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
+import com.nonxedy.nonchat.moderation.SanctionsManager;
 import com.nonxedy.nonchat.service.ConfigService;
 
 import io.papermc.paper.plugin.configuration.PluginMeta;
@@ -89,16 +92,33 @@ class MessageManagerTest {
         bukkit.close();
     }
 
-    /** Creates the manager with a config where every chat filter is off unless the test turns it on. */
     private void start(Consumer<YamlConfiguration> configure) throws Exception {
+        start(configure, moderation -> {});
+    }
+
+    /** Creates the manager with a moderation config where every chat filter is off unless the test turns it on. */
+    private void start(Consumer<YamlConfiguration> configure, Consumer<YamlConfiguration> configureModeration)
+            throws Exception {
+        YamlConfiguration moderationYaml = new YamlConfiguration();
+        moderationYaml.set("spam.enabled", false);
+        moderationYaml.set("advertising.enabled", false);
+        moderationYaml.set("caps.enabled", false);
+        moderationYaml.set("banned-words.enabled", false);
+        configureModeration.accept(moderationYaml);
+        File moderationFile = new File(dataFolder.toFile(), "moderation.yml");
+        moderationYaml.save(moderationFile);
+        // The bundled template is the file itself, so the updater has nothing to add
+        when(plugin.getResource("moderation.yml")).thenAnswer(invocation -> new FileInputStream(moderationFile));
+        ModerationConfig moderation = new ModerationConfig(plugin, messages);
+        moderation.load();
+        when(plugin.getSanctionsManager()).thenReturn(SanctionsManager.createDefault(moderation));
+
         YamlConfiguration yaml = new YamlConfiguration();
-        yaml.set("anti-spam.enabled", false);
-        yaml.set("anti-ad.enabled", false);
-        yaml.set("caps-filter.enabled", false);
-        yaml.set("banned-words.enabled", false);
         yaml.set("private-chat.sound", "");
         configure.accept(yaml);
-        yaml.save(new File(dataFolder.toFile(), "config.yml"));
+        File configFile = new File(dataFolder.toFile(), "config.yml");
+        yaml.save(configFile);
+        when(plugin.getResource("config.yml")).thenAnswer(invocation -> new FileInputStream(configFile));
 
         PluginConfig config = new PluginConfig(plugin);
         manager = new MessageManager(plugin, config, messages, spy);
@@ -252,11 +272,10 @@ class MessageManagerTest {
 
     @Test
     void blockedWordStopsDelivery() throws Exception {
-        start(yaml -> {
-            yaml.set("banned-words.enabled", true);
-            yaml.set("banned-words.words", List.of("badword"));
-            yaml.set("banned-words.actions", List.of("block"));
-            yaml.set("banned-words.console-notify", false);
+        start(yaml -> {}, moderation -> {
+            moderation.set("banned-words.enabled", true);
+            moderation.set("banned-words.words", List.of("badword"));
+            moderation.set("banned-words.console-notify", false);
         });
 
         manager.sendPrivateMessage(alice, bob, "this is a badword", false);

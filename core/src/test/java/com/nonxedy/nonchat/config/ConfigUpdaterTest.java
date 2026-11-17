@@ -151,4 +151,38 @@ class ConfigUpdaterTest {
         assertTrue(result.changed());
         assertEquals("es", load(result.content()).getString("language"));
     }
+
+    @Test
+    void keepsUserListsOfMappingsIntact() throws Exception {
+        String template = String.join("\n",
+                "advertising:",
+                "  tiers:",
+                "    - strikes: 1",
+                "      expire: 30m",
+                "      actions:",
+                "        - notify-staff",
+                "  console-notify: true",
+                "");
+        String current = String.join("\n",
+                "advertising:",
+                "  tiers:",
+                "    - strikes: 3",
+                "      expire: 1h",
+                "      actions: [\"kick %player_name%\", notify-staff]",
+                "    - strikes: 5",
+                "      expire: 24h",
+                "      actions: []",
+                "");
+
+        ConfigUpdater.Result result = ConfigUpdater.update(template, current, null);
+
+        assertTrue(result.changed());
+        YamlConfiguration updated = load(result.content());
+        assertEquals(2, updated.getMapList("advertising.tiers").size());
+        assertEquals(3, updated.getMapList("advertising.tiers").get(0).get("strikes"));
+        assertEquals(List.of("kick %player_name%", "notify-staff"),
+                updated.getMapList("advertising.tiers").get(0).get("actions"));
+        assertEquals(List.of(), updated.getMapList("advertising.tiers").get(1).get("actions"));
+        assertTrue(updated.getBoolean("advertising.console-notify"));
+    }
 }
