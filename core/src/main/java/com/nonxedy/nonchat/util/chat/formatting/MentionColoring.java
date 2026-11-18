@@ -5,8 +5,8 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import com.nonxedy.nonchat.util.chat.MentionPatterns;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 
 import net.kyori.adventure.text.Component;
@@ -17,8 +17,6 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 /** Restores mention styling even when gradients/patterns split text into individual glyphs. */
 public final class MentionColoring {
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
-    private static final Pattern AT_MENTION = Pattern.compile("@(\\w+)");
-    private static final Pattern BARE_MENTION = Pattern.compile("@?\\b(\\w+)\\b");
 
     private MentionColoring() {}
 
@@ -29,7 +27,7 @@ public final class MentionColoring {
         }
 
         String visible = PLAIN.serialize(message);
-        Matcher matcher = (allowBareNames ? BARE_MENTION : AT_MENTION).matcher(visible);
+        Matcher matcher = (allowBareNames ? MentionPatterns.bareMention() : MentionPatterns.atMention()).matcher(visible);
         BitSet highlights = new BitSet(visible.length());
         while (matcher.find()) {
             if (!allowBareNames || isOnlinePlayer.test(matcher.group(1))) {

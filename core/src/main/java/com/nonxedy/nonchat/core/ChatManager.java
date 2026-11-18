@@ -26,6 +26,7 @@ import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.moderation.SanctionsManager;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
+import com.nonxedy.nonchat.util.chat.MentionPatterns;
 import com.nonxedy.nonchat.util.special.mention.MentionNotifier;
 
 import me.clip.placeholderapi.PlaceholderAPI;
@@ -39,8 +40,6 @@ public class ChatManager {
     private final PluginConfig config;
     private final PluginMessages messages;
     private final ChannelManager channelManager;
-    private final Pattern atMentionPattern = Pattern.compile("@(\\w+)");
-    private final Pattern bareMentionPattern = Pattern.compile("@?\\b(\\w+)\\b");
     private final Map<UUID, List<?>> bubbles = new ConcurrentHashMap<>();
     private final Map<UUID, ReentrantLock> playerLocks = new ConcurrentHashMap<>();
     private IgnoreCommand ignoreCommand;
@@ -474,7 +473,9 @@ public class ChatManager {
      * behavior that came from swapping patterns based on the online player count.
      */
     private Matcher getMentionMatcher(String message) {
-        Pattern pattern = config.isMentionWithoutAtEnabled() ? bareMentionPattern : atMentionPattern;
+        Pattern pattern = config.isMentionWithoutAtEnabled()
+                ? MentionPatterns.bareMention()
+                : MentionPatterns.atMention();
         return pattern.matcher(message);
     }
 
