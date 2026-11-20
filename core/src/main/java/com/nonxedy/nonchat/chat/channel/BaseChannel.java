@@ -341,6 +341,10 @@ public class BaseChannel implements Channel {
                     name -> Bukkit.getPlayerExact(name) != null);
         }
 
+        return formatMessageWithBody(player, format, body);
+    }
+
+    private Component formatMessageWithBody(Player player, String format, Component body) {
         TagResolver messageResolver = Placeholder.component("nonchat_message", body);
         String template = format.contains("{message}")
                 ? format.replace("{message}", "<nonchat_message>") : format + "<nonchat_message>";
@@ -393,19 +397,8 @@ public class BaseChannel implements Channel {
      * @return Formatted component
      */
     private Component formatMessageWithSpanningGradient(Player player, String message, String format) {
-        // Process the message content first to handle color permissions
-        String processedMessage = message;
-
-        // Check color permission for the message content
-        if (!player.hasPermission("nonchat.color")) {
-            processedMessage = ColorUtil.stripFormatting(message);
-        }
-
-        // Replace {message} with the processed message content
-        String fullFormat = format.replace("{message}", processedMessage);
-
-        // Parse the full format with hover only on player name
-        return parseFullFormatWithHover(fullFormat, player);
+        Component body = processMessageContent(player, message, "");
+        return formatMessageWithBody(player, format, body);
     }
 
     /**
@@ -610,7 +603,7 @@ public class BaseChannel implements Channel {
             }
         }
 
-        return LinkDetector.makeLinksClickable(processedMessage);
+        return LinkDetector.makeLinksClickable(processedMessage, player);
     }
 
     /**
@@ -734,7 +727,7 @@ public class BaseChannel implements Channel {
             // Add text before placeholder
             if (partIndex < parts.length && !parts[partIndex].isEmpty()) {
                 String textPart = parts[partIndex];
-                builder.append(LinkDetector.makeLinksClickable(textPart));
+                builder.append(LinkDetector.makeLinksClickable(textPart, player));
             }
             partIndex++;
 
@@ -766,7 +759,7 @@ public class BaseChannel implements Channel {
         // Add remaining text
         if (partIndex < parts.length && !parts[partIndex].isEmpty()) {
             String textPart = parts[partIndex];
-            builder.append(LinkDetector.makeLinksClickable(textPart));
+            builder.append(LinkDetector.makeLinksClickable(textPart, player));
         }
 
         return builder.build();
@@ -789,46 +782,6 @@ public class BaseChannel implements Channel {
 
         String beforeName = beforeMessage.substring(0, nameIndex);
         String afterName = beforeMessage.substring(nameIndex + playerName.length());
-
-        // Extract trailing color from beforeName to apply to the player name
-        String trailingColor = extractTrailingColor(beforeName);
-
-        Component nameComponent;
-        if (!trailingColor.isEmpty()) {
-            // Remove the trailing color from beforeName if it's at the end
-            if (beforeName.endsWith(trailingColor)) {
-                beforeName = beforeName.substring(0, beforeName.length() - trailingColor.length());
-            }
-            // Create name component with the trailing color applied
-            Component coloredNameComponent = ColorUtil.parseConfigComponent(trailingColor + playerName);
-            nameComponent = hoverTextUtil.addHoverToComponent(coloredNameComponent, player);
-        } else {
-            nameComponent = hoverTextUtil.createHoverableText(playerName, player);
-        }
-
-        Component beforeComponent = ColorUtil.parseConfigComponent(beforeName);
-        Component afterComponent = ColorUtil.parseConfigComponent(afterName);
-
-        return beforeComponent.append(nameComponent).append(afterComponent);
-    }
-
-    /**
-     * Parses the full format and adds hover only to the player name
-     * @param fullFormat The full format string
-     * @param player The player to get hover information for
-     * @return Component with hover only on the player name
-     */
-    private Component parseFullFormatWithHover(String fullFormat, Player player) {
-        String playerName = player.getName();
-        int nameIndex = findVisibleTextIndex(fullFormat, playerName);
-
-        if (nameIndex == -1) {
-            // If player name not found, add hover to the entire format
-            return hoverTextUtil.addHoverToComponent(ColorUtil.parseConfigComponent(fullFormat), player);
-        }
-
-        String beforeName = fullFormat.substring(0, nameIndex);
-        String afterName = fullFormat.substring(nameIndex + playerName.length());
 
         // Extract trailing color from beforeName to apply to the player name
         String trailingColor = extractTrailingColor(beforeName);

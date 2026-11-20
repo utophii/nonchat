@@ -22,10 +22,13 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 
 import com.nonxedy.nonchat.api.InteractivePlaceholder;
 import com.nonxedy.nonchat.test.ChatColorFixture;
+import com.nonxedy.nonchat.util.chat.MentionPatterns;
 import com.nonxedy.nonchat.util.chat.formatting.HoverTextUtil;
 
 import net.kyori.adventure.text.Component;
@@ -64,6 +67,62 @@ class BaseChannelChatColorTest {
 
     private BaseChannel channel(String format) {
         return new BaseChannel("local", "Local", format, "", "", "", 100, true, hover, 0, 1, 256);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void checksClickPermissionWithAndWithoutChatColor(boolean integration) {
+        when(f.player.hasPermission("nonchat.color")).thenReturn(true);
+        if (!integration) when(f.nonchat.getChatColorHook()).thenReturn(null);
+        for (String format : List.of(FORMAT, "<gradient:red:blue>Sender {message}</gradient>")) {
+            for (boolean allowed : List.of(false, true)) {
+                when(f.player.hasPermission("nonchat.format.click")).thenReturn(allowed);
+                Component result = channel(format).formatMessage(f.player,
+                        "<click:run_command:'/pay Ajneb 1000'>magic</click>");
+                var style = glyphs(result).get(plain(result).indexOf("magic")).style();
+                assertEquals(allowed ? ClickEvent.runCommand("/pay Ajneb 1000") : null, style.clickEvent());
+            }
+        }
+    }
+
+    @Test
+    void blocksTypedEventsWhileKeepingServerPlaceholdersAndLinks() {
+        when(f.player.hasPermission("nonchat.color")).thenReturn(true);
+        when(f.nonchat.getChatColorHook()).thenReturn(null);
+        f.config.set("interactive-placeholders.enabled", true);
+        InteractivePlaceholder placeholder = mock(InteractivePlaceholder.class);
+        when(placeholder.getPlaceholder()).thenReturn("loc");
+        when(placeholder.isEnabled()).thenReturn(true);
+        when(placeholder.process(eq(f.player), any(String[].class))).thenReturn(
+                Component.text("coords").clickEvent(ClickEvent.suggestCommand("/tp 1 2 3")));
+        f.nonchat.getPlaceholderManager().registerPlaceholder(placeholder);
+        Component result = channel(FORMAT).formatMessage(f.player,
+                "<click:run_command:'/op Ajneb'>magic</click> [loc] https://example.com");
+        assertNull(glyphs(result).get(plain(result).indexOf("magic")).style().clickEvent());
+        assertEquals(ClickEvent.suggestCommand("/tp 1 2 3"),
+                glyphs(result).get(plain(result).indexOf("coords")).style().clickEvent());
+        assertEquals(ClickEvent.openUrl("https://example.com"),
+                glyphs(result).get(plain(result).indexOf("https://example.com")).style().clickEvent());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void preservesBedrockMentionsWhileBlockingTypedEvents(boolean integration) {
+        MentionPatterns.setBedrockPrefix(".");
+        try {
+            if (!integration) when(f.nonchat.getChatColorHook()).thenReturn(null);
+            f.config.set("mentions.enabled", true);
+            f.config.set("mention-colors.enabled", true);
+            f.config.set("mention-colors.color", "&#FFAFFB");
+            for (String format : List.of(FORMAT, "<gradient:red:blue>Sender {message}</gradient>")) {
+                Component result = channel(format).formatMessage(f.player,
+                        "hi @.Alex <click:run_command:'/op Ajneb'>magic</click>");
+                assertColor(result, "@.Alex", TextColor.color(0xffaffb));
+                assertNull(glyphs(result).get(plain(result).indexOf("magic")).style().clickEvent());
+            }
+        } finally {
+            MentionPatterns.setBedrockPrefix("");
+        }
     }
 
     @Test

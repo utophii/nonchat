@@ -20,6 +20,7 @@ import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 /**
@@ -116,7 +117,7 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
         String spyFormat = pluginConfig.getSpyFormat()
                 .replace("{sender}", sender.getName())
                 .replace("{target}", target.getName())
-                .replace("{message}", plainMessage);
+                .replace("{message}", "<nonchat_message>");
 
         // Send formatted message to all spies except sender and target
         for (UUID spyId : spyPlayers) {
@@ -124,8 +125,10 @@ public class SpyCommand implements CommandExecutor, TabCompleter {
             if (spy != null && !spy.equals(sender) && !spy.equals(target)
                     && (spy.hasPermission("nonchat.spy.all")
                         || pluginConfig.canPrivateMessage(spy, sender))) {
-                MessageUtil.send(spy, ColorUtil.parseComponent(spyFormat));
-                plugin.logResponse("Spy " + spy.getName() + " received message: " + spyFormat);
+                MessageUtil.send(spy, ColorUtil.parseComponent(spyFormat,
+                        Placeholder.unparsed("nonchat_message", plainMessage)));
+                plugin.logResponse("Spy " + spy.getName() + " received message: "
+                        + spyFormat.replace("<nonchat_message>", plainMessage));
             }
         }
     }

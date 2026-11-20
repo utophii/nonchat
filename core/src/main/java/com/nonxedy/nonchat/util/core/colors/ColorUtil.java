@@ -21,6 +21,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
@@ -162,6 +163,32 @@ public final class ColorUtil {
             .editTags(b -> b.resolver(createHeadTagResolver()))
             .build();
 
+    private static final TagResolver MESSAGE_FORMATTING = TagResolver.resolver(
+            StandardTags.color(), StandardTags.decorations(), StandardTags.gradient(),
+            StandardTags.rainbow(), StandardTags.transition(), StandardTags.reset());
+
+    /**
+     * Parses message text with only text formatting and explicitly permitted events.
+     * Callers enforce nonchat.color before adding inherited format colors.
+     * A null sender grants no interactive tags. Server templates use parseComponent.
+     */
+    public static @NotNull Component parseMessageComponent(@NotNull String message, @Nullable Player sender,
+            TagResolver... resolvers) {
+        TagResolver.Builder tags = TagResolver.builder().resolver(MESSAGE_FORMATTING);
+        if (sender != null && sender.hasPermission("nonchat.color")) {
+            if (sender.hasPermission("nonchat.format.click")) tags.resolver(StandardTags.clickEvent());
+            if (sender.hasPermission("nonchat.format.hover")) tags.resolver(StandardTags.hoverEvent());
+            if (sender.hasPermission("nonchat.format.insertion")) tags.resolver(StandardTags.insertion());
+        }
+        try {
+            return MiniMessage.builder().tags(tags.build()).build()
+                    .deserialize(normalizeToMiniMessage(message), resolvers);
+        } catch (Exception e) {
+            // Never retry untrusted text with the unrestricted parser.
+            return Component.text(message);
+        }
+    }
+
     // ── Caches ───────────────────────────────────────────────────────────────────
 
     /** Caches raw-string → normalised-MiniMessage-string conversions. */
@@ -226,7 +253,7 @@ public final class ColorUtil {
         if (player != null && !player.hasPermission("nonchat.color")) {
             return Component.text(stripFormatting(message));
         }
-        return parseComponent(message);
+        return player == null ? parseComponent(message) : parseMessageComponent(message, player);
     }
 
     /**
@@ -244,7 +271,7 @@ public final class ColorUtil {
         if (player != null && !player.hasPermission("nonchat.color")) {
             return Component.text(stripFormatting(message));
         }
-        return parseComponent(message, resolvers);
+        return player == null ? parseComponent(message, resolvers) : parseMessageComponent(message, player, resolvers);
     }
 
     /**
@@ -303,8 +330,7 @@ public final class ColorUtil {
             @NotNull String format,
             @NotNull Player sender,
             @NotNull String message) {
-        return parseChatFormat(format, sender.getName(), message,
-                sender.hasPermission("nonchat.color"));
+        return parseChatFormatComponent(format, sender.getName(), parseComponent(message, sender));
     }
 
     public static @NotNull Component parseChatFormat(
@@ -321,9 +347,14 @@ public final class ColorUtil {
             boolean allowFormatting,
             TagResolver... extra) {
 
-        if (format.isEmpty()) {
-            return allowFormatting ? parseComponent(message) : Component.text(stripFormatting(message));
-        }
+        Component body = allowFormatting ? parseMessageComponent(message, null)
+                : Component.text(stripFormatting(message));
+        return parseChatFormatComponent(format, playerName, body, extra);
+    }
+
+    private static Component parseChatFormatComponent(String format, String playerName, Component body,
+            TagResolver... extra) {
+        if (format.isEmpty()) return body;
 
         try {
             String normalizedFormat = normalizeToMiniMessage(format)
@@ -331,9 +362,7 @@ public final class ColorUtil {
                     .replace("%message%", "<message>");
 
             TagResolver playerResolver  = Placeholder.unparsed("player", playerName);
-            TagResolver messageResolver = allowFormatting
-                    ? Placeholder.parsed("message", normalizeToMiniMessage(message))
-                    : Placeholder.unparsed("message", stripFormatting(message));
+            TagResolver messageResolver = Placeholder.component("message", body);
 
             TagResolver combined = extra.length > 0
                     ? TagResolver.resolver(playerResolver, messageResolver, TagResolver.resolver(extra))
@@ -344,8 +373,8 @@ public final class ColorUtil {
         } catch (Exception e) {
             String fallback = format
                     .replace("%player%", playerName)
-                    .replace("%message%", allowFormatting ? message : stripFormatting(message));
-            return parseComponent(fallback);
+                    .replace("%message%", PlainTextComponentSerializer.plainText().serialize(body));
+            return Component.text(fallback);
         }
     }
 

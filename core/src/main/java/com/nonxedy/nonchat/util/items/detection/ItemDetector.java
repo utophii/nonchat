@@ -43,7 +43,7 @@ public class ItemDetector {
             boolean itemEnabled = nonchatPlugin.getConfig().getBoolean("interactive-placeholders.item-enabled", true);
             
             if (!globalEnabled || !itemEnabled) {
-                return LinkDetector.makeLinksClickable(text);
+                return LinkDetector.makeLinksClickable(text, player);
             }
         }
         
@@ -64,7 +64,7 @@ public class ItemDetector {
             // Add the text before the [item] placeholder (with link detection)
             if (matcher.start() > lastEnd) {
                 String textBefore = text.substring(lastEnd, matcher.start());
-                builder.append(LinkDetector.makeLinksClickable(textBefore));
+                builder.append(LinkDetector.makeLinksClickable(textBefore, player));
             }
             
             // Get held item
@@ -82,12 +82,12 @@ public class ItemDetector {
         // Add any remaining text after the last match (with link detection)
         if (lastEnd < text.length()) {
             String remainingText = text.substring(lastEnd);
-            builder.append(LinkDetector.makeLinksClickable(remainingText));
+            builder.append(LinkDetector.makeLinksClickable(remainingText, player));
         }
         
         // If no items were found, return the original text with link detection
         if (!foundItem) {
-            return LinkDetector.makeLinksClickable(text);
+            return LinkDetector.makeLinksClickable(text, player);
         }
         
         // Return the built component

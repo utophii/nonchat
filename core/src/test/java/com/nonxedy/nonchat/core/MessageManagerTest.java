@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
+import static com.nonxedy.nonchat.test.ComponentAssertions.glyphs;
+import static com.nonxedy.nonchat.test.ComponentAssertions.plain;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -25,6 +27,8 @@ import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -42,6 +46,7 @@ import com.nonxedy.nonchat.service.ConfigService;
 
 import io.papermc.paper.plugin.configuration.PluginMeta;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 class MessageManagerTest {
@@ -174,6 +179,30 @@ class MessageManagerTest {
 
         assertEquals(bob.getUniqueId(), manager.getLastMessageSender().get(alice.getUniqueId()));
         assertEquals(alice.getUniqueId(), manager.getLastMessageSender().get(bob.getUniqueId()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void privateMessagesAndRepliesRequireExplicitClickPermission(boolean allowed) throws Exception {
+        start();
+        when(alice.hasPermission("nonchat.color")).thenReturn(true);
+        when(alice.hasPermission("nonchat.format.click")).thenReturn(allowed);
+        String text = "<click:run_command:'/pay Ajneb 1000'>magic</click>";
+        manager.sendPrivateMessage(alice, bob, text, false);
+        bukkit.when(() -> Bukkit.getPlayer(bob.getUniqueId())).thenReturn(bob);
+        manager.replyToLastMessage(alice, text);
+        for (Player recipient : List.of(alice, bob)) {
+            ArgumentCaptor<Component> captor = ArgumentCaptor.forClass(Component.class);
+            verify(recipient, times(2)).sendMessage(captor.capture());
+            for (Component message : captor.getAllValues()) {
+                var click = glyphs(message).get(plain(message).indexOf("magic")).style().clickEvent();
+                if (allowed) {
+                    assertEquals(ClickEvent.runCommand("/pay Ajneb 1000"), click);
+                } else {
+                    assertTrue(click == null || click.action() == ClickEvent.Action.SUGGEST_COMMAND);
+                }
+            }
+        }
     }
 
     @Test

@@ -4,8 +4,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
@@ -42,6 +45,14 @@ public class LinkDetector {
     }
 
     public static Component makeLinksClickable(String text) {
+        return makeLinksClickable(text, ColorUtil::parseComponent);
+    }
+
+    public static Component makeLinksClickable(String text, Player sender) {
+        return makeLinksClickable(text, value -> ColorUtil.parseMessageComponent(value, sender));
+    }
+
+    private static Component makeLinksClickable(String text, Function<String, Component> parser) {
         if (text == null || text.isEmpty()) {
             return Component.empty();
         }
@@ -50,7 +61,7 @@ public class LinkDetector {
         Matcher matcher = URL_PATTERN.matcher(cleanText);
 
         if (!matcher.find()) {
-            return ColorUtil.parseComponent(text);
+            return parser.apply(text);
         }
 
         matcher.reset();
@@ -69,14 +80,14 @@ public class LinkDetector {
 
             String beforeUrl = text.substring(originalLastEnd, originalUrlStart);
             if (!beforeUrl.isEmpty()) {
-                parts.add(ColorUtil.parseComponent(beforeUrl));
+                parts.add(parser.apply(beforeUrl));
             }
 
             Component link = isLinkCandidate(cleanUrl) ? createLinkComponent(cleanUrl) : null;
             if (link != null) {
                 parts.add(link);
             } else {
-                parts.add(ColorUtil.parseComponent(cleanUrl));
+                parts.add(parser.apply(cleanUrl));
             }
 
             originalLastEnd = originalUrlEnd;
@@ -84,7 +95,7 @@ public class LinkDetector {
 
         String afterLastUrl = text.substring(originalLastEnd);
         if (!afterLastUrl.isEmpty()) {
-            parts.add(ColorUtil.parseComponent(afterLastUrl));
+            parts.add(parser.apply(afterLastUrl));
         }
 
         return Component.join(JoinConfiguration.noSeparators(), parts);

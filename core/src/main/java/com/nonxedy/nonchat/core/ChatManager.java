@@ -576,14 +576,9 @@ public class ChatManager {
                 plugin.logError("Error processing format placeholders for console: " + e.getMessage());
             }
         }
-        Component consoleMessage;
-        if (sender.hasPermission("nonchat.color")) {
-            consoleMessage = ColorUtil.parseComponent(consoleFormat.replace("{message}", originalMessage));
-        } else {
-            // Raw chat text must not be parsed as formatting for players without color permission
-            consoleMessage = ColorUtil.parseComponent(consoleFormat.replace("{message}", "<nonchat_message>"),
-                    Placeholder.unparsed("nonchat_message", ColorUtil.stripFormatting(originalMessage)));
-        }
+        Component consoleMessage = ColorUtil.parseComponent(
+                consoleFormat.replace("{message}", "<nonchat_message>"),
+                Placeholder.component("nonchat_message", ColorUtil.parseComponent(originalMessage, sender)));
 
         // Send to console with processed format
         try {

@@ -48,6 +48,9 @@ public class MessageParser {
         if (!allowFormatting) {
             return Component.text(ColorUtil.stripFormatting(message));
         }
+        if (player != null) {
+            return ColorUtil.parseComponent(message, player, resolvers.toArray(new TagResolver[0]));
+        }
         if (cached && resolvers.isEmpty()) {
             return ColorUtil.parseComponentCached(message);
         }

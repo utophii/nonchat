@@ -102,7 +102,7 @@ public class InteractivePlaceholderManager {
                 if (!currentColor.isEmpty() && !startsWithColor(toParse)) {
                     toParse = currentColor + toParse;
                 }
-                parts.add(LinkDetector.makeLinksClickable(toParse));
+                parts.add(LinkDetector.makeLinksClickable(toParse, player));
                 String trailing = extractTrailingColor(toParse);
                 if (!trailing.isEmpty()) {
                     currentColor = trailing;
@@ -144,12 +144,12 @@ public class InteractivePlaceholderManager {
                     // No permission — render as plain text but preserve color
                     String raw = matcher.group();
                     String toParse = !currentColor.isEmpty() && !startsWithColor(raw) ? currentColor + raw : raw;
-                    parts.add(LinkDetector.makeLinksClickable(toParse));
+                    parts.add(LinkDetector.makeLinksClickable(toParse, player));
                 }
             } else {
                 String raw = matcher.group();
                 String toParse = !currentColor.isEmpty() && !startsWithColor(raw) ? currentColor + raw : raw;
-                parts.add(LinkDetector.makeLinksClickable(toParse));
+                parts.add(LinkDetector.makeLinksClickable(toParse, player));
             }
 
             lastEnd = matcher.end();
@@ -173,10 +173,10 @@ public class InteractivePlaceholderManager {
             if (!currentColor.isEmpty() && !startsWithColor(tail)) {
                 toParse = currentColor + tail;
             }
-            parts.add(LinkDetector.makeLinksClickable(toParse));
+            parts.add(LinkDetector.makeLinksClickable(toParse, player));
         } else if (parts.isEmpty()) {
             // No placeholder found at all — just parse whole message (already has inheritedColor)
-            return LinkDetector.makeLinksClickable(message);
+            return LinkDetector.makeLinksClickable(message, player);
         }
 
         if (parts.isEmpty()) {

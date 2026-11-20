@@ -15,6 +15,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 public class PrivateMessageUtil {
 
@@ -36,9 +37,10 @@ public class PrivateMessageUtil {
         String formattedMessage = format
                 .replace("{sender}", senderName)
                 .replace("{receiver}", target.getName())
-                .replace("{message}", message);
+                .replace("{message}", "<nonchat_message>");
 
-        Component baseComponent = ColorUtil.parseComponent(formattedMessage);
+        Component baseComponent = ColorUtil.parseComponent(formattedMessage,
+                Placeholder.component("nonchat_message", ColorUtil.parseComponent(message, sender)));
 
         if (config.isPrivateChatSenderHoverEnabled()) {
             baseComponent = addSenderInteractivity(config, baseComponent, sender, target);
@@ -66,9 +68,10 @@ public class PrivateMessageUtil {
         String formattedMessage = format
                 .replace("{sender}", senderName)
                 .replace("{receiver}", target.getName())
-                .replace("{message}", message);
+                .replace("{message}", "<nonchat_message>");
 
-        Component baseComponent = ColorUtil.parseComponent(formattedMessage);
+        Component baseComponent = ColorUtil.parseComponent(formattedMessage,
+                Placeholder.component("nonchat_message", ColorUtil.parseComponent(message, sender)));
 
         if (config.isPrivateChatReceiverHoverEnabled()) {
             baseComponent = addReceiverInteractivity(config, baseComponent, sender, target);

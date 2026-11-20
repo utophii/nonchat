@@ -116,6 +116,15 @@ permissions:
   nonchat.color:
     description: Allows using colors and text formatting in chat
     default: op
+  nonchat.format.click:
+    description: Allows MiniMessage click events in chat, requires nonchat.color
+    default: op
+  nonchat.format.hover:
+    description: Allows MiniMessage hover events in chat, requires nonchat.color
+    default: op
+  nonchat.format.insertion:
+    description: Allows MiniMessage text insertion in chat, requires nonchat.color
+    default: op
   nonchat.ad.bypass:
     description: Bypass anti-ad commands
     default: op

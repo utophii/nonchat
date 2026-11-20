@@ -20,6 +20,7 @@ import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 /**
  * Handles roleplay action command functionality
@@ -115,10 +116,10 @@ public class MeCommand implements CommandExecutor, TabCompleter {
             }
         }
 
-        // Insert the raw user message (no placeholder parsing on message content)
-        String formattedMessage = format.replace("{message}", message);
+        String formattedMessage = format.replace("{message}", "<nonchat_message>");
 
-        plugin.getServer().broadcast(ColorUtil.parseComponent(formattedMessage));
+        plugin.getServer().broadcast(ColorUtil.parseComponent(formattedMessage,
+                Placeholder.component("nonchat_message", ColorUtil.parseComponent(message, (Player) sender))));
         plugin.logResponse("Me command executed: " + sender.getName() + " - " + message);
     }
 
