@@ -18,6 +18,7 @@ import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.api.Channel;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
 import com.nonxedy.nonchat.util.chat.formatting.HoverTextUtil;
+import com.nonxedy.nonchat.util.chat.MentionPatterns;
 import com.nonxedy.nonchat.util.chat.formatting.MentionColoring;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.items.detection.ItemDetector;
@@ -541,8 +542,8 @@ public class BaseChannel implements Channel {
 
         String visibleMessage = ColorUtil.stripFormatting(rawMessage);
         Pattern mentionPattern = nonchatPlugin.getConfig().getBoolean("mentions.allow-without-at", false)
-                ? Pattern.compile("@?\\b(\\w+)\\b")
-                : Pattern.compile("@(\\w+)");
+                ? MentionPatterns.bareMention()
+                : MentionPatterns.atMention();
         Matcher mentionMatcher = mentionPattern.matcher(visibleMessage);
 
         // Replacing each distinct token once avoids rebuilding the component for
