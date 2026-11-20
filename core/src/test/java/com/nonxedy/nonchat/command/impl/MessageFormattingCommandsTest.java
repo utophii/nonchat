@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.PluginManager;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.config.PluginMessages;
+import com.nonxedy.nonchat.moderation.SanctionsManager;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -38,6 +41,9 @@ class MessageFormattingCommandsTest {
     @ValueSource(booleans = {false, true})
     void meCommandRespectsSenderFormattingPermissions(boolean allowed) {
         when(plugin.getServer()).thenReturn(server);
+        when(plugin.getSanctionsManager()).thenReturn(mock(SanctionsManager.class));
+        doReturn(List.of(sender)).when(server).getOnlinePlayers();
+        when(server.getConsoleSender()).thenReturn(mock(ConsoleCommandSender.class));
         when(config.isMeCommandEnabled()).thenReturn(true);
         when(config.getMeFormat()).thenReturn("<gray>action: {message}</gray>");
         when(sender.hasPermission("nonchat.me")).thenReturn(true);
@@ -48,7 +54,7 @@ class MessageFormattingCommandsTest {
             new MeCommand(plugin, config, messages).onCommand(sender, command, "me", INPUT.split(" "));
         }
         ArgumentCaptor<Component> captor = ArgumentCaptor.forClass(Component.class);
-        verify(server).broadcast(captor.capture());
+        verify(sender).sendMessage(captor.capture());
         Component result = captor.getValue();
         var click = glyphs(result).get(plain(result).indexOf("magic")).style().clickEvent();
         assertEquals(allowed ? ClickEvent.runCommand("/pay Ajneb 1000") : null, click);

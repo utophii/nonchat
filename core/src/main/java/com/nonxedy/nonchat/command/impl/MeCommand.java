@@ -20,6 +20,7 @@ import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 /**
@@ -105,12 +106,17 @@ public class MeCommand implements CommandExecutor, TabCompleter {
         }
 
         String message = String.join(" ", args);
+        Player player = (Player) sender;
+        if (plugin.getSanctionsManager().process(player, message)) {
+            return;
+        }
+
         String format = config.getMeFormat();
 
         // Parse placeholders ONLY on the format (admin-controlled), NEVER on user message
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             try {
-                format = PlaceholderAPI.setPlaceholders((Player) sender, format);
+                format = PlaceholderAPI.setPlaceholders(player, format);
             } catch (Exception e) {
                 plugin.logError("Failed to process PlaceholderAPI placeholders for me command: " + e.getMessage());
             }
@@ -118,8 +124,15 @@ public class MeCommand implements CommandExecutor, TabCompleter {
 
         String formattedMessage = format.replace("{message}", "<nonchat_message>");
 
-        plugin.getServer().broadcast(ColorUtil.parseComponent(formattedMessage,
-                Placeholder.component("nonchat_message", ColorUtil.parseComponent(message, (Player) sender))));
+        Component component = ColorUtil.parseComponent(formattedMessage,
+                Placeholder.component("nonchat_message", ColorUtil.parseComponent(message, player)));
+        IgnoreCommand ignoreCommand = plugin.getIgnoreCommand();
+        for (Player recipient : plugin.getServer().getOnlinePlayers()) {
+            if (ignoreCommand == null || !ignoreCommand.isIgnoring(recipient, player)) {
+                MessageUtil.send(recipient, component);
+            }
+        }
+        MessageUtil.send(plugin.getServer().getConsoleSender(), component);
         plugin.logResponse("Me command executed: " + sender.getName() + " - " + message);
     }
 
