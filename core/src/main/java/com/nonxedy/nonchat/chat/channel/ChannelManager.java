@@ -29,7 +29,8 @@ import com.nonxedy.nonchat.util.core.colors.ColorUtil;
  */
 public class ChannelManager {
     private final Map<String, Channel> channels = new ConcurrentHashMap<>();
-    private final Map<UUID, Channel> playerChannels = new ConcurrentHashMap<>();
+    // Resolve IDs against the current registry so reloads and updates take effect immediately.
+    private final Map<UUID, String> playerChannels = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastMessageTimes = new ConcurrentHashMap<>();
     private String defaultChannelId;
     private final PluginConfig config;
@@ -463,13 +464,9 @@ public class ChannelManager {
         asyncConfigSaver.saveNow();
 
         // Switch any players using this channel to the default
-        Channel defaultChannel = getDefaultChannel();
-        for (UUID playerId : playerChannels.keySet()) {
-            Channel activeChannel = playerChannels.get(playerId);
-            if (activeChannel != null && activeChannel.getId().equals(channelId)) {
-                playerChannels.put(playerId, defaultChannel);
-            }
-        }
+        String fallbackChannelId = getDefaultChannel().getId();
+        playerChannels.replaceAll((playerId, activeChannelId) ->
+                activeChannelId.equals(channelId) ? fallbackChannelId : activeChannelId);
 
         return true;
     }
@@ -755,7 +752,7 @@ public class ChannelManager {
         Channel channel = getChannel(channelId);
 
         if (channel != null && channel.isEnabled()) {
-            playerChannels.put(player.getUniqueId(), channel);
+            playerChannels.put(player.getUniqueId(), channel.getId());
 
             // Send switch message if configured
             if (channel.hasSwitchMessage()) {
@@ -771,11 +768,13 @@ public class ChannelManager {
     /**
      * Gets a player's active channel.
      * @param player The player
-     * @return The player's channel, or the default if none set
+     * @return The current channel instance, or the default if none is set or the channel was removed
      */
     @NotNull
     public Channel getPlayerChannel(Player player) {
-        return playerChannels.getOrDefault(player.getUniqueId(), getDefaultChannel());
+        String channelId = playerChannels.get(player.getUniqueId());
+        Channel channel = channelId != null ? getChannel(channelId) : null;
+        return channel != null ? channel : getDefaultChannel();
     }
     
     /**
