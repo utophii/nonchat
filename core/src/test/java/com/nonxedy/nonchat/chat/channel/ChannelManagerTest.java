@@ -1,9 +1,11 @@
 package com.nonxedy.nonchat.chat.channel;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import java.nio.file.Path;
 import java.util.UUID;
 
 import org.bukkit.Location;
@@ -13,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedConstruction;
@@ -23,6 +26,9 @@ import com.nonxedy.nonchat.config.PluginConfig;
 import com.nonxedy.nonchat.util.AsyncConfigSaver;
 
 class ChannelManagerTest {
+    @TempDir
+    Path dataFolder;
+
     private final Nonchat plugin = mock(Nonchat.class);
     private final PluginConfig config = mock(PluginConfig.class);
     private final Player player = mock(Player.class);
@@ -140,6 +146,64 @@ class ChannelManagerTest {
         manager.cleanupPlayer(player);
 
         assertSame(manager.getDefaultChannel(), manager.getPlayerChannel(player));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"&aВы вошли в канал: staff", ""})
+    void updatedSwitchMessageSurvivesReload(String switchMessage) throws Exception {
+        enablePersistence();
+        yaml.set("channels.staff.switch-message", "old message");
+        manager.loadChannels();
+
+        assertTrue(manager.updateChannel("staff", null, null, null, null, null,
+                null, null, null, null, null, switchMessage));
+        reloadSavedChannels();
+
+        assertEquals(switchMessage, manager.getChannel("staff").getSwitchMessage());
+        assertEquals(!switchMessage.isEmpty(), manager.getChannel("staff").hasSwitchMessage());
+    }
+
+    @Test
+    void updatingOtherSettingsPreservesSwitchMessage() throws Exception {
+        enablePersistence();
+        yaml.set("channels.staff.switch-message", "existing message");
+        manager.loadChannels();
+
+        assertTrue(manager.updateChannel("staff", "Staff channel", null, null, null, null,
+                null, null, null, null, null, null));
+        reloadSavedChannels();
+
+        assertEquals("existing message", manager.getChannel("staff").getSwitchMessage());
+        assertEquals("Staff channel", manager.getChannel("staff").getDisplayName());
+    }
+
+    @Test
+    void createdChannelSwitchMessageSurvivesReload() throws Exception {
+        enablePersistence();
+
+        assertNotNull(manager.createChannel("trade", "Trade", "{message}", "$", "", "",
+                -1, 0, 0, 256, "&aTrading channel"));
+        reloadSavedChannels();
+
+        assertEquals("&aTrading channel", manager.getChannel("trade").getSwitchMessage());
+    }
+
+    private void enablePersistence() {
+        // apply the writes requested by ChannelManager and persist real YAML without a background thread
+        AsyncConfigSaver saver = savers.constructed().getFirst();
+        doAnswer(invocation -> {
+            yaml.set(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(saver).saveAsync(anyString(), any());
+        doAnswer(invocation -> {
+            yaml.save(dataFolder.resolve("config.yml").toFile());
+            return null;
+        }).when(saver).saveNow();
+    }
+
+    private void reloadSavedChannels() throws Exception {
+        yaml.load(dataFolder.resolve("config.yml").toFile());
+        manager.loadChannels();
     }
 
     private Channel resolveUnprefixedMessage() {

@@ -524,6 +524,7 @@ public class ChannelManager {
         asyncConfigSaver.saveAsync(basePath + "cooldown", channel.getCooldown());
         asyncConfigSaver.saveAsync(basePath + "min-length", channel.getMinLength());
         asyncConfigSaver.saveAsync(basePath + "max-length", channel.getMaxLength());
+        asyncConfigSaver.saveAsync(basePath + "switch-message", channel.getSwitchMessage());
     }
 
     /**
