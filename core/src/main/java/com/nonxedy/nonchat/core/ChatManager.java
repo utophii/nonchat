@@ -414,25 +414,29 @@ public class ChatManager {
             // Only add bubbles if they were successfully created
             if (playerBubbles != null && !playerBubbles.isEmpty()) {
                 bubbles.put(player.getUniqueId(), playerBubbles);
+                Runnable removeCreatedBubble = () -> {
+                    // A newer message may have replaced this bubble before its timer expires
+                    if (bubbles.get(player.getUniqueId()) == playerBubbles) {
+                        removeBubble(player);
+                    }
+                };
 
                 try {
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        removeBubble(player);
-                    }, config.getChatBubblesDuration() * 20L);
+                    Bukkit.getScheduler().runTaskLater(plugin, removeCreatedBubble,
+                            config.getChatBubblesDuration() * 20L);
                 } catch (IllegalArgumentException e) {
                     plugin.logError(
                             "Failed to schedule bubble removal for player " + player.getName() + ": " + e.getMessage());
                     // Schedule removal using global scheduler as fallback
                     try {
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            removeBubble(player);
-                        }, config.getChatBubblesDuration() * 20L);
+                        Bukkit.getScheduler().runTaskLater(plugin, removeCreatedBubble,
+                                config.getChatBubblesDuration() * 20L);
                     } catch (IllegalArgumentException fallbackError) {
                         plugin.logError("Fallback bubble removal scheduling also failed for player " + player.getName()
                                 + ": " + fallbackError.getMessage());
                         // Try to remove bubble immediately as last resort
                         try {
-                            removeBubble(player);
+                            removeCreatedBubble.run();
                         } catch (Exception immediateError) {
                             plugin.logError("Immediate bubble removal also failed for player " + player.getName() + ": "
                                     + immediateError.getMessage());
