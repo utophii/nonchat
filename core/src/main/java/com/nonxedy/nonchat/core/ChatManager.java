@@ -3,6 +3,7 @@ package com.nonxedy.nonchat.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -492,7 +493,8 @@ public class ChatManager {
         // Process the mentions using Stream API
         mentionedNames.stream()
                 .map(Bukkit::getPlayerExact)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
+                .filter(mentioned -> ignoreCommand == null || !ignoreCommand.isIgnoring(mentioned, sender))
                 .filter(mentioned -> channel.isGlobal() || channel.isInRange(sender, mentioned))
                 .filter(mentioned -> channel.canReceive(mentioned))
                 .forEach(mentioned -> notifyMentionedPlayer(mentioned, sender));
