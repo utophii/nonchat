@@ -1,5 +1,7 @@
 package com.nonxedy.nonchat.util.core.colors;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -16,12 +18,14 @@ import org.jetbrains.annotations.Nullable;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.ObjectComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.Tag;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
+import net.kyori.adventure.text.object.ObjectContents;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
@@ -786,14 +790,14 @@ public final class ColorUtil {
         });
     }
 
-    /** Available only on Adventure 4.17+ (Paper 1.21+); falls back gracefully otherwise. */
     private static final boolean MODERN_HEAD_RENDERER_AVAILABLE = detectHeadRenderer();
 
     private static boolean detectHeadRenderer() {
         try {
-            Class.forName("net.kyori.adventure.text.object.ObjectContents");
+            MethodHandles.publicLookup().findStatic(Component.class, "object",
+                    MethodType.methodType(ObjectComponent.class, ObjectContents.class));
             return true;
-        } catch (ClassNotFoundException e) {
+        } catch (NoClassDefFoundError | NoSuchMethodException | IllegalAccessException e) {
             return false;
         }
     }
@@ -803,8 +807,6 @@ public final class ColorUtil {
         if (target.isEmpty()) return Component.empty();
 
         if (!MODERN_HEAD_RENDERER_AVAILABLE) {
-            // Player-head object contents require Adventure 4.17+ (Paper 1.21+).
-            // On older servers render a graceful text fallback instead of crashing.
             return Component.text("[" + target + "]", NamedTextColor.GOLD);
         }
         return ModernHeadRenderer.render(target, showHat);

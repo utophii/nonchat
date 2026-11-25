@@ -6,13 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.object.ObjectContents;
 import net.kyori.adventure.text.object.PlayerHeadObjectContents;
 
-/**
- * Renders player-head object contents.
- * Compiled against modern Adventure APIs (4.17+) and loaded only when the
- * running server provides them ({@code ObjectContents} exists). Referenced from
- * {@link ColorUtil} exclusively behind {@code MODERN_HEAD_RENDERER_AVAILABLE},
- * so this class must never be touched directly from older-API code paths.
- */
+/** Used when the server provides {@link Component#object(ObjectContents)}. */
 final class ModernHeadRenderer {
 
     private ModernHeadRenderer() {
