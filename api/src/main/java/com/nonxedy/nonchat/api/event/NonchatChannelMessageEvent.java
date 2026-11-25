@@ -19,8 +19,10 @@ import com.nonxedy.nonchat.api.Channel;
  * mention handling, formatting, and broadcast. Cancelling the event
  * silently blocks the message.
  *
- * <p>The recipient set is live: adding or removing players changes who
- * receives the message.
+ * <p>The recipient set initially respects ignore lists, channel permissions,
+ * range, and spy permissions. Adding or removing players overrides chat delivery
+ * to those players. Null and offline recipients are skipped. Removed recipients
+ * receive no mention notifications, and normal mention restrictions still apply.
  *
  * <pre>{@code
  * @EventHandler

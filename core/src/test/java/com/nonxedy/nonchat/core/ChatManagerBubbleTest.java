@@ -59,7 +59,9 @@ class ChatManagerBubbleTest {
         bukkit.when(Bukkit::getScheduler).thenReturn(scheduler);
         bukkit.when(Bukkit::getPluginManager).thenReturn(mock(PluginManager.class));
         bukkit.when(Bukkit::getConsoleSender).thenReturn(mock(ConsoleCommandSender.class));
-        bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(sender, mock(Player.class)));
+        Player recipient = mock(Player.class);
+        when(recipient.isOnline()).thenReturn(true);
+        bukkit.when(Bukkit::getOnlinePlayers).thenReturn(List.of(sender, recipient));
         when(sender.getUniqueId()).thenReturn(UUID.randomUUID());
         when(sender.isOnline()).thenReturn(true);
         when(sender.getGameMode()).thenReturn(GameMode.SURVIVAL);

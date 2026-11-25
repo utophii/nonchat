@@ -1,14 +1,17 @@
 package com.nonxedy.nonchat.core;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -18,6 +21,7 @@ import org.bukkit.entity.Player;
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.api.Channel;
 import com.nonxedy.nonchat.api.ChannelAPI;
+import com.nonxedy.nonchat.api.event.NonchatChannelMessageEvent;
 import com.nonxedy.nonchat.chat.channel.BaseChannel;
 import com.nonxedy.nonchat.chat.channel.ChannelManager;
 import com.nonxedy.nonchat.chat.channel.ResolvedChannelMessage;
@@ -107,9 +111,15 @@ public class ChatManager {
                 return;
             }
 
+            if (!processChannelMessageEvent(context)) {
+                plugin.logChatMessage("Filtered: Player=" + player.getName() + " Channel="
+                        + context.channel.getId() + " Reason=channel_event_cancelled");
+                return;
+            }
+
             // Handle mentions
             if (config.isMentionsEnabled()) {
-                handleMentions(player, context.processedMessage, context.channel);
+                handleMentions(player, context.processedMessage, context.channel, context.recipients);
             }
 
             // Format and broadcast
@@ -140,6 +150,7 @@ public class ChatManager {
         Channel channel;
         String finalMessage;
         String processedMessage;
+        Set<Player> recipients;
         boolean messageDelivered;
 
         ChatProcessingContext(Player player, String messageContent) {
@@ -261,14 +272,34 @@ public class ChatManager {
             return false; // Message was cancelled by a processor
         }
 
-        // Apply mention coloring if enabled
-        String messageToSend = (config.isMentionsEnabled() && config.isMentionColoringEnabled())
-                ? processMentionColoring(processedMessage)
-                : processedMessage;
-
         context.processedMessage = processedMessage;
-        context.finalMessage = messageToSend;
         return true;
+    }
+
+    private boolean processChannelMessageEvent(ChatProcessingContext context) {
+        NonchatChannelMessageEvent event = new NonchatChannelMessageEvent(context.player, context.channel,
+                context.processedMessage, collectRecipients(context.player, context.channel));
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return false;
+        }
+
+        context.recipients = new LinkedHashSet<>(event.getRecipients());
+        context.recipients.removeIf(recipient -> recipient == null || !recipient.isOnline());
+        context.processedMessage = event.getMessage();
+        context.finalMessage = (config.isMentionsEnabled() && config.isMentionColoringEnabled())
+                ? processMentionColoring(context.processedMessage)
+                : context.processedMessage;
+        return true;
+    }
+
+    private Set<Player> collectRecipients(Player sender, Channel channel) {
+        return Bukkit.getOnlinePlayers().stream()
+                .filter(recipient -> ignoreCommand == null || !ignoreCommand.isIgnoring(recipient, sender))
+                .filter(recipient -> recipient.hasPermission("nonchat.spy.all")
+                        || (channel.canReceive(recipient)
+                            && (channel.isGlobal() || channel.isInRange(sender, recipient))))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private void broadcastProcessedMessage(ChatProcessingContext context) {
@@ -284,7 +315,8 @@ public class ChatManager {
                 && plugin.getChatColorHook() != null && plugin.getChatColorHook().isEnabled();
         Component formattedMessage = channel.formatMessage(player,
                 nativeChatColor ? processedMessage : messageToSend);
-        context.messageDelivered = broadcastMessage(player, formattedMessage, channel, processedMessage);
+        context.messageDelivered = broadcastMessage(player, formattedMessage, channel, processedMessage,
+                context.recipients);
 
         // Notify if message wasn't delivered
         if (config.isUndeliveredMessageNotificationEnabled() && !context.messageDelivered) {
@@ -484,7 +516,7 @@ public class ChatManager {
         return pattern.matcher(message);
     }
 
-    private void handleMentions(Player sender, String message, Channel channel) {
+    private void handleMentions(Player sender, String message, Channel channel, Set<Player> recipients) {
         String messageToCheck = ColorUtil.stripFormatting(message);
         Matcher mentionMatcher = getMentionMatcher(messageToCheck);
 
@@ -498,6 +530,7 @@ public class ChatManager {
         mentionedNames.stream()
                 .map(Bukkit::getPlayerExact)
                 .filter(Objects::nonNull)
+                .filter(recipients::contains)
                 .filter(mentioned -> ignoreCommand == null || !ignoreCommand.isIgnoring(mentioned, sender))
                 .filter(mentioned -> channel.isGlobal() || channel.isInRange(sender, mentioned))
                 .filter(mentioned -> channel.canReceive(mentioned))
@@ -568,10 +601,11 @@ public class ChatManager {
      * @param message         The formatted message component
      * @param channel         The channel being used
      * @param originalMessage The original message content
-     * @return true if the message was delivered to at least one player, false
-     *         otherwise
+     * @param recipients      The recipients selected by the channel-message event
+     * @return true if the message was delivered to a player other than the sender
      */
-    private boolean broadcastMessage(Player sender, Component message, Channel channel, String originalMessage) {
+    private boolean broadcastMessage(Player sender, Component message, Channel channel, String originalMessage,
+                                     Set<Player> recipients) {
         // For console, create a simple message without our color modifications to avoid
         // &f appearing
         String consoleFormat = channel.getFormat();
@@ -595,22 +629,14 @@ public class ChatManager {
                     Component.text(PlainTextComponentSerializer.plainText().serialize(consoleMessage)));
         }
 
-        // Count how many players received the message
-        long recipientCount = Bukkit.getOnlinePlayers().stream()
-                // Skip players ignoring the sender
-                .filter(recipient -> ignoreCommand == null || !ignoreCommand.isIgnoring(recipient, sender))
-                // Check for spy.all permission - bypass all restrictions
-                .filter(recipient -> recipient.hasPermission("nonchat.spy.all") || 
-                    // Normal filtering for players without spy.all permission
-                    (channel.canReceive(recipient) && 
-                     (channel.isGlobal() || channel.isInRange(sender, recipient))))
-                // Send message to filtered recipients and count them
-                .peek(recipient -> MessageUtil.send(recipient, message))
-                .count();
-
-        // Return true if at least one player (other than sender) received the message
-        // We subtract 1 because the sender is also counted in the recipients
-        return recipientCount > 1;
+        boolean deliveredToOtherPlayer = false;
+        for (Player recipient : recipients) {
+            MessageUtil.send(recipient, message);
+            if (!recipient.equals(sender)) {
+                deliveredToOtherPlayer = true;
+            }
+        }
+        return deliveredToOtherPlayer;
     }
 
     /**
