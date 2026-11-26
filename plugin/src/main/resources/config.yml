@@ -19,6 +19,15 @@
 # Supported languages: en, ru, es
 language: en
 
+# Player data for /ignore, /msgtoggle and active moderation strikes.
+# Choose yaml, mysql or mariadb. Restart the server to change storage.
+storage:
+  type: yaml
+  # Both SQL modes use MariaDB Connector/J. Use a separate database per server.
+  jdbc-url: "jdbc:mariadb://localhost:3306/nonchat?sslMode=verify-full&connectTimeout=5000&socketTimeout=10000"
+  username: nonchat
+  password: ""
+
 # Enable/disable debug mode for detailed console logs.
 debug: false
 

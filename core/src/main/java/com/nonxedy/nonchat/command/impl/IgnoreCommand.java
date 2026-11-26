@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.storage.IgnoreStorage;
+import com.nonxedy.nonchat.storage.SnapshotStorage;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
@@ -31,14 +32,18 @@ public class IgnoreCommand implements CommandExecutor, TabCompleter {
     private final PluginMessages messages;
     // Map to store ignored players (key: player UUID, value: set of ignored player UUIDs)
     private final Map<UUID, Set<UUID>> ignoredPlayers = new HashMap<>();
-    private final IgnoreStorage ignoreStorage;
+    private final SnapshotStorage<Map<UUID, Set<UUID>>> ignoreStorage;
 
     // Constructor to initialize the command
     public IgnoreCommand(Nonchat plugin, PluginMessages messages) {
+        this(plugin, messages, new IgnoreStorage(plugin));
+    }
+
+    public IgnoreCommand(Nonchat plugin, PluginMessages messages, SnapshotStorage<Map<UUID, Set<UUID>>> storage) {
         this.plugin = plugin;
         this.messages = messages;
-        this.ignoreStorage = new IgnoreStorage(plugin);
-        this.ignoredPlayers.putAll(ignoreStorage.load());
+        this.ignoreStorage = storage;
+        ignoreStorage.load().forEach((owner, targets) -> ignoredPlayers.put(owner, new HashSet<>(targets)));
     }
 
     /**
@@ -50,7 +55,7 @@ public class IgnoreCommand implements CommandExecutor, TabCompleter {
      * @return true if command handled successfully
      */
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public synchronized boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         // Log the executed command
         plugin.logCommand(command.getName(), args);
 
@@ -141,7 +146,7 @@ public class IgnoreCommand implements CommandExecutor, TabCompleter {
      * @param target The player who might be ignored
      * @return true if sender is ignoring target
      */
-    public boolean isIgnoring(Player sender, Player target) {
+    public synchronized boolean isIgnoring(Player sender, Player target) {
         Set<UUID> ignored = ignoredPlayers.get(sender.getUniqueId());
         return ignored != null && ignored.contains(target.getUniqueId());
     }
@@ -151,7 +156,7 @@ public class IgnoreCommand implements CommandExecutor, TabCompleter {
      * @param player The player whose ignore list to retrieve
      * @return Set of UUIDs representing ignored players
      */
-    public Set<UUID> getIgnoredPlayers(Player player) {
+    public synchronized Set<UUID> getIgnoredPlayers(Player player) {
         Set<UUID> ignored = ignoredPlayers.get(player.getUniqueId());
         return ignored == null ? Collections.emptySet() : Set.copyOf(ignored);
     }
@@ -161,7 +166,7 @@ public class IgnoreCommand implements CommandExecutor, TabCompleter {
      * @param player The player to check
      * @return true if the player is ignoring at least one other player
      */
-    public boolean isIgnoringAnyone(Player player) {
+    public synchronized boolean isIgnoringAnyone(Player player) {
         Set<UUID> ignored = ignoredPlayers.get(player.getUniqueId());
         return ignored != null && !ignored.isEmpty();
     }
@@ -170,7 +175,7 @@ public class IgnoreCommand implements CommandExecutor, TabCompleter {
      * Clears a player's ignore list
      * @param player The player whose ignore list to clear
      */
-    public void clearIgnoreList(Player player) {
+    public synchronized void clearIgnoreList(Player player) {
         if (ignoredPlayers.remove(player.getUniqueId()) != null) {
             saveIgnoreLists();
         }

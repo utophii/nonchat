@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 import org.bukkit.entity.Player;
 
 import com.nonxedy.nonchat.config.ModerationConfig;
+import com.nonxedy.nonchat.storage.SnapshotStorage;
 import com.nonxedy.nonchat.util.chat.filters.AdDetector;
 import com.nonxedy.nonchat.util.chat.filters.CapsDetector;
 import com.nonxedy.nonchat.util.chat.filters.SpamDetector;
@@ -46,7 +47,7 @@ public class SanctionsManager {
     private final Consumer<String> debug;
     private final Map<UUID, List<Strike>> strikes = new ConcurrentHashMap<>();
     private final Clock clock;
-    private final StrikeStorage storage;
+    private final SnapshotStorage<Map<UUID, List<Strike>>> storage;
     private final ExecutorService saver;
     private final AtomicBoolean savePending = new AtomicBoolean();
 
@@ -66,14 +67,19 @@ public class SanctionsManager {
     SanctionsManager(List<ViolationDetector> detectors,
                      Function<ViolationType, ViolationRule> ruleProvider,
                      Consumer<String> debug, File strikesFile, Clock clock) {
+        this(detectors, ruleProvider, debug, clock, strikesFile == null ? null : new StrikeStorage(strikesFile, clock));
+    }
+
+    private SanctionsManager(List<ViolationDetector> detectors, Function<ViolationType, ViolationRule> ruleProvider,
+                             Consumer<String> debug, Clock clock, SnapshotStorage<Map<UUID, List<Strike>>> storage) {
         this.clock = clock;
         this.detectors = List.copyOf(detectors);
         this.ruleProvider = ruleProvider;
         this.debug = debug;
         this.actionRunner = new SanctionActionRunner(debug);
 
-        if (strikesFile != null) {
-            this.storage = new StrikeStorage(strikesFile, clock);
+        this.storage = storage;
+        if (storage != null) {
             this.saver = Executors.newSingleThreadExecutor(runnable -> {
                 Thread thread = new Thread(runnable, "nonchat-strike-saver");
                 thread.setDaemon(true);
@@ -87,9 +93,8 @@ public class SanctionsManager {
                 }
             });
             saveAsync();
-            debug.accept("Loaded strikes of " + strikes.size() + " player(s) from " + strikesFile.getName());
+            debug.accept("Loaded strikes of " + strikes.size() + " player(s)");
         } else {
-            this.storage = null;
             this.saver = null;
         }
     }
@@ -113,6 +118,11 @@ public class SanctionsManager {
      * so they survive restarts
      */
     public static SanctionsManager createDefault(ModerationConfig config, Consumer<String> debug, File strikesFile) {
+        return createWithStorage(config, debug, strikesFile == null ? null : new StrikeStorage(strikesFile));
+    }
+
+    public static SanctionsManager createWithStorage(ModerationConfig config, Consumer<String> debug,
+                                                     SnapshotStorage<Map<UUID, List<Strike>>> storage) {
         return new SanctionsManager(
                 List.of(
                         new WordBlocker(config),
@@ -121,7 +131,7 @@ public class SanctionsManager {
                         new AdDetector(config)),
                 new ModerationRuleProvider(config),
                 debug,
-                strikesFile);
+                Clock.systemUTC(), storage);
     }
 
     /** Applies reloaded settings to detector state. */

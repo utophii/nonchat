@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import com.nonxedy.nonchat.Nonchat;
 import com.nonxedy.nonchat.config.PluginMessages;
 import com.nonxedy.nonchat.storage.MsgToggleStorage;
+import com.nonxedy.nonchat.storage.SnapshotStorage;
 import com.nonxedy.nonchat.util.core.colors.ColorUtil;
 import com.nonxedy.nonchat.util.core.messages.MessageUtil;
 
@@ -32,12 +33,16 @@ public class MsgToggleCommand implements CommandExecutor, TabCompleter {
     private final PluginMessages messages;
     // Players who have private messages turned off
     private final Set<UUID> disabledPlayers = ConcurrentHashMap.newKeySet();
-    private final MsgToggleStorage storage;
+    private final SnapshotStorage<Set<UUID>> storage;
 
     public MsgToggleCommand(Nonchat plugin, PluginMessages messages) {
+        this(plugin, messages, new MsgToggleStorage(plugin));
+    }
+
+    public MsgToggleCommand(Nonchat plugin, PluginMessages messages, SnapshotStorage<Set<UUID>> storage) {
         this.plugin = plugin;
         this.messages = messages;
-        this.storage = new MsgToggleStorage(plugin);
+        this.storage = storage;
         this.disabledPlayers.addAll(storage.load());
     }
 
@@ -104,7 +109,7 @@ public class MsgToggleCommand implements CommandExecutor, TabCompleter {
      * @param player Player to toggle
      * @return true if private messages are now enabled
      */
-    public boolean toggle(Player player) {
+    public synchronized boolean toggle(Player player) {
         UUID uuid = player.getUniqueId();
         boolean enabled = disabledPlayers.remove(uuid);
         if (!enabled) {

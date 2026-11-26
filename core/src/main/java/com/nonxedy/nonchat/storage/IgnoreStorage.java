@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -21,7 +22,7 @@ import com.nonxedy.nonchat.Nonchat;
  * <p>The file contains UUIDs only, so renaming a player does not invalidate an
  * existing ignore relationship.</p>
  */
-public final class IgnoreStorage {
+public final class IgnoreStorage implements SnapshotStorage<Map<UUID, Set<UUID>>> {
     private static final String ROOT_PATH = "ignored-players";
 
     private final Nonchat plugin;
@@ -32,27 +33,27 @@ public final class IgnoreStorage {
         this.file = new File(plugin.getDataFolder(), "ignore.yml");
     }
 
+    @Override
     public Map<UUID, Set<UUID>> load() {
-        Map<UUID, Set<UUID>> result = new HashMap<>();
-        if (!file.exists()) {
-            return result;
-        }
+        return read(file.exists() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration(), plugin.getLogger());
+    }
 
-        YamlConfiguration configuration = YamlConfiguration.loadConfiguration(file);
+    static Map<UUID, Set<UUID>> read(YamlConfiguration configuration, Logger logger) {
+        Map<UUID, Set<UUID>> result = new HashMap<>();
         ConfigurationSection owners = configuration.getConfigurationSection(ROOT_PATH);
         if (owners == null) {
             return result;
         }
 
         for (String ownerId : owners.getKeys(false)) {
-            UUID owner = parseUuid(ownerId, "owner");
+            UUID owner = parseUuid(ownerId, "owner", logger);
             if (owner == null) {
                 continue;
             }
 
             Set<UUID> ignored = new HashSet<>();
             for (String ignoredId : configuration.getStringList(ROOT_PATH + "." + ownerId)) {
-                UUID ignoredPlayer = parseUuid(ignoredId, "ignored player");
+                UUID ignoredPlayer = parseUuid(ignoredId, "ignored player", logger);
                 if (ignoredPlayer != null && !owner.equals(ignoredPlayer)) {
                     ignored.add(ignoredPlayer);
                 }
@@ -65,6 +66,7 @@ public final class IgnoreStorage {
     }
 
     /** Writes a detached snapshot, avoiding mutable state leaking into I/O. */
+    @Override
     public void save(Map<UUID, Set<UUID>> ignoreLists) {
         YamlConfiguration configuration = new YamlConfiguration();
         for (Map.Entry<UUID, Set<UUID>> entry : ignoreLists.entrySet()) {
@@ -90,11 +92,11 @@ public final class IgnoreStorage {
         }
     }
 
-    private UUID parseUuid(String value, String type) {
+    private static UUID parseUuid(String value, String type, Logger logger) {
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException exception) {
-            plugin.getLogger().warning("Skipping invalid " + type + " UUID in ignore.yml: " + value);
+            logger.warning("Skipping invalid " + type + " UUID in ignore.yml: " + value);
             return null;
         }
     }

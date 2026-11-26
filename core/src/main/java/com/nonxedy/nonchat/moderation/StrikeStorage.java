@@ -18,6 +18,8 @@ import java.util.logging.Logger;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
+import com.nonxedy.nonchat.storage.SnapshotStorage;
+
 /**
  * Keeps the strikes of {@link SanctionsManager} in a YAML file, so they survive restarts:
  * <pre>
@@ -27,7 +29,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
  *     expires: 1760001800000
  * </pre>
  */
-class StrikeStorage {
+public final class StrikeStorage implements SnapshotStorage<Map<UUID, List<Strike>>> {
 
     private static final Logger LOGGER = Logger.getLogger("nonchat");
 
@@ -35,7 +37,7 @@ class StrikeStorage {
     private final Clock clock;
     private boolean writesBlocked;
 
-    StrikeStorage(File file) {
+    public StrikeStorage(File file) {
         this(file, Clock.systemUTC());
     }
 
@@ -48,10 +50,9 @@ class StrikeStorage {
      * Reads the strikes that are still valid. Entries that cannot be read are skipped.
      * An unreadable file is moved aside and treated as empty. If preservation fails, saves are disabled.
      */
-    synchronized Map<UUID, List<Strike>> load() {
-        Map<UUID, List<Strike>> result = new HashMap<>();
+    public synchronized Map<UUID, List<Strike>> load() {
         if (!file.exists()) {
-            return result;
+            return new HashMap<>();
         }
 
         YamlConfiguration yaml = new YamlConfiguration();
@@ -69,10 +70,14 @@ class StrikeStorage {
                 LOGGER.log(Level.SEVERE, "[nonchat] Could not preserve unreadable strikes, saves disabled until restart: {0}",
                         preservationError.getMessage());
             }
-            return result;
+            return new HashMap<>();
         }
 
-        Instant now = clock.instant();
+        return read(yaml, clock.instant());
+    }
+
+    public static Map<UUID, List<Strike>> read(YamlConfiguration yaml, Instant now) {
+        Map<UUID, List<Strike>> result = new HashMap<>();
         for (String key : yaml.getKeys(false)) {
             UUID playerId;
             try {
@@ -98,7 +103,7 @@ class StrikeStorage {
     /**
      * Writes the strikes that are still valid, replacing the file atomically
      */
-    synchronized void save(Map<UUID, List<Strike>> strikes) {
+    public synchronized void save(Map<UUID, List<Strike>> strikes) {
         if (writesBlocked) return;
         Instant now = clock.instant();
         YamlConfiguration yaml = new YamlConfiguration();
@@ -129,7 +134,7 @@ class StrikeStorage {
         }
     }
 
-    private Strike parse(UUID playerId, Map<?, ?> entry) {
+    private static Strike parse(UUID playerId, Map<?, ?> entry) {
         try {
             ViolationType type = ViolationType.valueOf(String.valueOf(entry.get("type")));
             long issued = ((Number) entry.get("issued")).longValue();

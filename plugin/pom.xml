@@ -93,6 +93,10 @@
               <createDependencyReducedPom>false</createDependencyReducedPom>
               <relocations>
                 <relocation>
+                  <pattern>org.mariadb.jdbc</pattern>
+                  <shadedPattern>com.nonxedy.nonchat.libs.mariadb</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>com.github.benmanes.caffeine</pattern>
                   <shadedPattern>com.nonxedy.nonchat.libs.caffeine</shadedPattern>
                 </relocation>

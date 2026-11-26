@@ -1,8 +1,10 @@
 package com.nonxedy.nonchat;
 
 import java.io.File;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -29,11 +31,15 @@ import com.nonxedy.nonchat.listener.JoinQuitListener;
 import com.nonxedy.nonchat.listener.MentionTabCompleteListener;
 import com.nonxedy.nonchat.listener.PlayerCleanupListener;
 import com.nonxedy.nonchat.moderation.SanctionsManager;
+import com.nonxedy.nonchat.moderation.StrikeStorage;
 import com.nonxedy.nonchat.placeholders.NonchatExpansion;
 import com.nonxedy.nonchat.service.ChatService;
 import com.nonxedy.nonchat.service.CommandService;
 import com.nonxedy.nonchat.service.ConfigService;
 import com.nonxedy.nonchat.service.DeathMessageService;
+import com.nonxedy.nonchat.storage.IgnoreStorage;
+import com.nonxedy.nonchat.storage.MsgToggleStorage;
+import com.nonxedy.nonchat.storage.SqlPlayerDatabase;
 import com.nonxedy.nonchat.util.InteractivePlaceholderManager;
 import com.nonxedy.nonchat.util.chat.filters.LinkDetector;
 import com.nonxedy.nonchat.util.chat.filters.TldListUpdater;
@@ -59,6 +65,7 @@ public class Nonchat extends JavaPlugin {
     private ChatManager chatManager;
     private MessageManager messageManager;
     private SanctionsManager sanctionsManager;
+    private SqlPlayerDatabase database;
     private BroadcastManager broadcastManager;
     private SpyCommand spyCommand;
     private Debugger debugger;
@@ -120,12 +127,19 @@ public class Nonchat extends JavaPlugin {
 
             // Now that config is loaded, initialize the rest of the services
             this.spyCommand = new SpyCommand(this, configService.getMessages(), configService.getConfig());
-            this.ignoreCommand = new IgnoreCommand(this, configService.getMessages());
-            this.msgToggleCommand = new MsgToggleCommand(this, configService.getMessages());
-
-            // Initialize moderation before the managers that depend on it
-            this.sanctionsManager = SanctionsManager.createDefault(configService.getModeration(), this::logModeration,
-                    new File(getDataFolder(), "strikes.yml"));
+            var config = configService.getConfig().getConfig();
+            String backend = config.getString("storage.type", "yaml").trim().toLowerCase(Locale.ROOT);
+            database = switch (backend) {
+                case "yaml" -> null;
+                case "mysql", "mariadb" -> SqlPlayerDatabase.open(this, config);
+                default -> throw new IllegalArgumentException("Unknown storage.type " + backend);
+            };
+            this.ignoreCommand = new IgnoreCommand(this, configService.getMessages(),
+                    database == null ? new IgnoreStorage(this) : database.ignores());
+            this.msgToggleCommand = new MsgToggleCommand(this, configService.getMessages(),
+                    database == null ? new MsgToggleStorage(this) : database.disabledMessages());
+            this.sanctionsManager = SanctionsManager.createWithStorage(configService.getModeration(), this::logModeration,
+                    database == null ? new StrikeStorage(new File(getDataFolder(), "strikes.yml")) : database.strikes());
 
             // Initialize core managers
             this.chatManager = new ChatManager(this, configService.getConfig(), configService.getMessages());
@@ -416,6 +430,14 @@ public class Nonchat extends JavaPlugin {
 
         } catch (Exception e) {
             getLogger().log(Level.WARNING, "Error during plugin shutdown: {0}", e.getMessage());
+        } finally {
+            if (database != null) {
+                try {
+                    database.close();
+                } catch (SQLException e) {
+                    getLogger().log(Level.SEVERE, "Could not save pending player data during shutdown", e);
+                }
+            }
         }
     }
 
